@@ -1,0 +1,71 @@
+name: Python Checks
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+jobs:
+  autoformat:
+    env:
+      UV_SYSTEM_PYTHON: 1
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install the latest version of uv and set the python version
+      uses: astral-sh/setup-uv@v6
+      with:
+        python-version: "3.12"
+    - name: "Set up Python"
+      uses: actions/setup-python@v5
+    - name: Install ruff
+      run: uv pip install $(uv export --no-hashes --frozen | grep '^ruff==')
+    - name: Autoformat
+      run: uv run --frozen --no-sync -- ruff format . --check
+  lint:
+    env:
+      UV_SYSTEM_PYTHON: 1
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install the latest version of uv and set the python version
+      uses: astral-sh/setup-uv@v6
+      with:
+        python-version: "3.12"
+    - name: "Set up Python"
+      uses: actions/setup-python@v5
+    - name: Install ruff
+      run: uv pip install $(uv export --no-hashes --frozen | grep '^ruff==')
+    - name: Lint
+      run: |
+        echo "::add-matcher::.github/workflows/lint_matcher.json"
+        uv run --frozen --no-sync ruff check .
+  typecheck:
+    env:
+      UV_SYSTEM_PYTHON: 1
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install the latest version of uv and set the python version
+      uses: astral-sh/setup-uv@v6
+      with:
+        python-version: "3.12"
+    - name: "Set up Python"
+      uses: actions/setup-python@v5
+    - name: Install ruff
+      run: uv pip install $(uv export --no-hashes --frozen | grep '^ruff==')
+    - name: Typecheck
+      run: uv run --frozen --no-sync ty check
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install the latest version of uv and set the python version
+      uses: astral-sh/setup-uv@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Test with python ${{ matrix.python-version }}
+      run: uv run --frozen pytest --duration=5 -v
