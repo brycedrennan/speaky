@@ -1,13 +1,11 @@
-"""Core synthesis utilities for the *voiceit* package.
+"""Core synthesis utilities for the *speak* package.
 
-This module contains **all heavy-lifting logic** (device detection, model
-loading, text chunking, audio concatenation, etc.).  Keeping the
-implementation here lets the public API (and tests) import it directly,
-while the Typer CLI becomes a *thin* wrapper.
+This revision replaces the previous regex-based sentence splitter with
+the SaT model from **wtpsplit**, giving vastly more robust segmentation
+across 85 languages.  The default maximum-character threshold for
+chunking and synthesis is now **800**.
 
-The code is **fully compatible with macOS-MPS**: if an Apple-silicon GPU
-is detected we automatically patch ``torch.load`` so that all checkpoints
-are remapped onto ``torch.device("mps")``.
+The rest of the public API is unchanged.
 """
 
 from __future__ import annotations
@@ -18,6 +16,7 @@ from typing import TYPE_CHECKING
 import torch
 import torchaudio as ta
 from chatterbox.tts import ChatterboxTTS
+from wtpsplit import SaT  # NEW: state-of-the-art segmentation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -56,14 +55,7 @@ def detect_device(preferred: str | None = None) -> str:
 
 
 def patch_torch_load_for_mps() -> None:
-    """Monkey-patch ``torch.load`` so checkpoints map to *mps* automatically.
-
-    PyTorch's default *map_location* for ``torch.load`` often points to
-    ``cuda``.  On machines without CUDA—i.e. most Macs—this throws an
-    error.  We sidestep that by injecting a wrapper that forces
-    ``map_location=torch.device("mps")`` when running on Apple silicon.
-    """
-
+    """Monkey-patch ``torch.load`` so checkpoints map to *mps* automatically."""
     if not torch.backends.mps.is_available():
         return  # Nothing to do
 
@@ -82,7 +74,7 @@ def patch_torch_load_for_mps() -> None:
 # ---------------------------------------------------------------------------
 
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9]+")
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+# _SENTENCE_SPLIT_RE removed — segmentation now handled by SaT
 
 
 def slugify(text: str, max_len: int = 40) -> str:
@@ -91,20 +83,32 @@ def slugify(text: str, max_len: int = 40) -> str:
     return slug[:max_len] or "speech"
 
 
+# -- NEW: SaT-powered chunking ------------------------------------------------
+
+
+def _lazy_segmenter() -> SaT:  # noqa: WPS430
+    """Cache the SaT model so we only load it once per session."""
+    if not hasattr(_lazy_segmenter, "_cache"):
+        # 3-layer “-sm” model: excellent accuracy, tiny footprint
+        _lazy_segmenter._cache = SaT("sat-3l-sm")  # type: ignore[attr-defined]
+    return _lazy_segmenter._cache  # type: ignore[attr-defined]
+
+
 def chunk_text(text: str, max_chars: int) -> list[str]:
-    """Split *text* into ~*max_chars* chunks, preserving sentence boundaries."""
+    """Split *text* into ≈*max_chars* chunks, preserving sentence boundaries."""
     if len(text) <= max_chars:
         return [text]
 
-    sentences = _SENTENCE_SPLIT_RE.split(text)
+    # High-quality multilingual sentence segmentation
+    sentences = [s.strip() for s in _lazy_segmenter().split(text)]
     chunks: list[str] = []
     buf: list[str] = []
     buf_len = 0
 
     for sent in sentences:
-        sent = sent.strip()
         if not sent:
             continue
+        # +1 for the space we add when joining
         if buf_len + len(sent) + 1 <= max_chars:
             buf.append(sent)
             buf_len += len(sent) + 1
@@ -123,8 +127,7 @@ def chunk_text(text: str, max_chars: int) -> list[str]:
 
 
 def _lazy_model(device: str) -> ChatterboxTTS:  # noqa: WPS430
-    """Cache the model so we only pay start-up cost once."""
-    # Use function attributes for a super-simple memoization.
+    """Cache the TTS model so we only pay start-up cost once."""
     if not hasattr(_lazy_model, "_cache"):
         _lazy_model._cache = {}  # type: ignore[attr-defined]
     if device not in _lazy_model._cache:  # type: ignore[attr-defined]
@@ -140,7 +143,7 @@ def synthesize_one(
     device: str | None = None,
     exaggeration: float = 0.5,
     cfg_weight: float = 0.4,
-    max_chars: int = 1200,
+    max_chars: int = 800,  # UPDATED default
     overwrite: bool = False,
 ) -> None:
     """Synthesize *text* and write a single WAV file to *output_path*."""
@@ -178,7 +181,7 @@ def batch_synthesize(
     audio_prompt_path: Path | None = None,
     exaggeration: float = 0.5,
     cfg_weight: float = 0.5,
-    max_chars: int = 2000,
+    max_chars: int = 800,  # UPDATED default
     overwrite: bool = False,
 ) -> list[Path]:
     """High-level helper to synthesise multiple entries.

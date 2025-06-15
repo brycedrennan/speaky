@@ -1,5 +1,5 @@
 [project]
-name = "voiceit"
+name = "speak"
 authors = [
     {name = "Bryce Drennan"},
 ]
@@ -14,6 +14,7 @@ dependencies = [
     "torch>=2.2",
     "torchaudio>=2.2",
     "typer>=0.12",
+    "wtpsplit>=0.1.0",
 ]
 
 [dependency-groups]
@@ -31,8 +32,8 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/brycedrennan/voiceit"
-Source = "https://github.com/brycedrennan/voiceit"
+Documentation = "https://github.com/brycedrennan/speak"
+Source = "https://github.com/brycedrennan/speak"
 
 # ---------------------------------------------------------------------------
 # Build system
@@ -43,13 +44,13 @@ requires = ["setuptools>=76", "setuptools_scm[toml]>=8.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["voiceit"]
+packages = ["speak"]
 
 [tool.setuptools_scm]
-write_to = "voiceit/_version.py"
+write_to = "speak/_version.py"
 
 [project.scripts]
-voiceit = "voiceit.cli:main"
+speak = "speak.cli:main"
 
 [tool.ruff]
 extend-exclude = []

@@ -1,4 +1,4 @@
-"""Typer wrapper around the *voiceit.core* utilities."""
+"""Typer wrapper around the *speak.core* utilities."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from pathlib import Path
 import typer
 from tqdm.auto import tqdm
 
-from voiceit.core import batch_synthesize, slugify
+from speak.core import batch_synthesize, slugify
 
-app = typer.Typer(add_completion=False, help="VoiceIt — TTS made easy with Chatterbox")
+app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
 
 
 @app.command("synth")
@@ -54,27 +54,27 @@ def synthesize(
         help="Path to an audio prompt for voice cloning (optional).",
     ),
     exaggeration: float = typer.Option(
-        0.5,
+        0.6,
         min=0.0,
         max=2.0,
         help="Emotion intensity/exaggeration.",
         show_default=True,
     ),
     cfg_weight: float = typer.Option(
-        0.4,
+        0.5,
         min=0.0,
         max=1.0,
         help="Classifier-free guidance weight.",
         show_default=True,
     ),
     max_chars: int = typer.Option(
-        1200,
+        800,
         min=200,
         help="Maximum characters per chunk before the text is split automatically.",
         show_default=True,
     ),
 ):
-    """Entry-point for the *voiceit* executable."""
+    """Entry-point for the *speak* executable."""
 
     if not text and not file:
         typer.secho("Error: provide --text and/or --file/-f", fg=typer.colors.RED, err=True)
@@ -118,7 +118,7 @@ def synthesize(
     typer.secho("Done!", fg=typer.colors.GREEN)
 
 
-# Allow `python -m voiceit.cli`
+# Allow `python -m speak.cli`
 
 
 def main() -> None:  # pragma: no cover
