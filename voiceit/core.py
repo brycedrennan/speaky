@@ -139,8 +139,8 @@ def synthesize_one(
     audio_prompt_path: Path | None = None,
     device: str | None = None,
     exaggeration: float = 0.5,
-    cfg_weight: float = 0.5,
-    max_chars: int = 2000,
+    cfg_weight: float = 0.4,
+    max_chars: int = 1200,
     overwrite: bool = False,
 ) -> None:
     """Synthesize *text* and write a single WAV file to *output_path*."""

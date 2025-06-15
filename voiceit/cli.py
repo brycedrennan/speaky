@@ -61,14 +61,14 @@ def synthesize(
         show_default=True,
     ),
     cfg_weight: float = typer.Option(
-        0.5,
+        0.4,
         min=0.0,
         max=1.0,
         help="Classifier-free guidance weight.",
         show_default=True,
     ),
     max_chars: int = typer.Option(
-        2000,
+        1200,
         min=200,
         help="Maximum characters per chunk before the text is split automatically.",
         show_default=True,
