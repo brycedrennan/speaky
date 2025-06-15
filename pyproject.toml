@@ -3,14 +3,21 @@ name = "voiceit"
 authors = [
     {name = "Bryce Drennan"},
 ]
-description = ""
+description = "CLI wrapper around Resemble AI's Chatterbox TTS"
 readme = "README.md"
 requires-python = ">=3.12.8"
 dynamic = ["version"]
-dependencies = []
 license = "MIT"
 
+dependencies = [
+    "chatterbox-tts>=0.1.0",
+    "torch>=2.2",
+    "torchaudio>=2.2",
+    "typer[all]>=0.12",
+]
+
 [dependency-groups]
+
 dev = [
     "build",
     "coverage",
@@ -20,13 +27,16 @@ dev = [
     "pytest-sugar",
     "ruff",
     "twine",
-    "ty",
     "wheel",
 ]
 
 [project.urls]
 Documentation = "https://github.com/brycedrennan/voiceit"
 Source = "https://github.com/brycedrennan/voiceit"
+
+# ---------------------------------------------------------------------------
+# Build system
+# ---------------------------------------------------------------------------
 
 [build-system]
 requires = ["setuptools>=76", "setuptools_scm[toml]>=8.1"]
@@ -37,6 +47,9 @@ packages = ["voiceit"]
 
 [tool.setuptools_scm]
 write_to = "voiceit/_version.py"
+
+[project.scripts]
+voiceit = "voiceit.cli:main"
 
 [tool.ruff]
 extend-exclude = []
