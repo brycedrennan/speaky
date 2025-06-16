@@ -1,24 +1,20 @@
+# File: /Users/bryce/projects/speak/speak/core.py
 """Core synthesis utilities for the *speak* package.
 
-This revision replaces the previous regex-based sentence splitter with
-the SaT model from **wtpsplit**, giving vastly more robust segmentation
-across 85 languages.  The default maximum-character threshold for
-chunking and synthesis is now **800**.
-
-The rest of the public API is unchanged.
 """
 
 from __future__ import annotations
 
 import re
+from functools import cache
 from typing import TYPE_CHECKING
 
+import nltk  # Using NLTK for sentence tokenization
 import torch
 import torchaudio as ta
 from chatterbox.tts import ChatterboxTTS
-from wtpsplit import SaT  # NEW: state-of-the-art segmentation
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
     from pathlib import Path
 
@@ -40,7 +36,7 @@ def detect_device(preferred: str | None = None) -> str:
     """Return the best available device.
 
     Priority:
-    1. *preferred* if the caller explicitly set one.
+    1. *preferred* if supplied by the caller.
     2. Apple silicon GPU (``mps``) if available.
     3. CUDA GPU (``cuda``) if available.
     4. CPU.
@@ -59,12 +55,12 @@ def patch_torch_load_for_mps() -> None:
     if not torch.backends.mps.is_available():
         return  # Nothing to do
 
-    _orig_torch_load = torch.load  # noqa: WPS122
+    _orig_load = torch.load  # noqa: WPS122
 
     def _patched_load(*args, **kwargs):  # type: ignore[override]
         if "map_location" not in kwargs:
             kwargs["map_location"] = torch.device("mps")
-        return _orig_torch_load(*args, **kwargs)
+        return _orig_load(*args, **kwargs)
 
     torch.load = _patched_load  # type: ignore[assignment]
 
@@ -74,7 +70,6 @@ def patch_torch_load_for_mps() -> None:
 # ---------------------------------------------------------------------------
 
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9]+")
-# _SENTENCE_SPLIT_RE removed — segmentation now handled by SaT
 
 
 def slugify(text: str, max_len: int = 40) -> str:
@@ -83,15 +78,21 @@ def slugify(text: str, max_len: int = 40) -> str:
     return slug[:max_len] or "speech"
 
 
-# -- NEW: SaT-powered chunking ------------------------------------------------
+# -- Sentence chunking with NLTK -------------------------------------------
 
 
-def _lazy_segmenter() -> SaT:  # noqa: WPS430
-    """Cache the SaT model so we only load it once per session."""
-    if not hasattr(_lazy_segmenter, "_cache"):
-        # 3-layer “-sm” model: excellent accuracy, tiny footprint
-        _lazy_segmenter._cache = SaT("sat-3l-sm")  # type: ignore[attr-defined]
-    return _lazy_segmenter._cache  # type: ignore[attr-defined]
+def _ensure_punkt() -> None:
+    """Ensure that the Punkt tokenizer is available."""
+    try:
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:  # pragma: no cover
+        nltk.download("punkt", quiet=True)
+
+
+def _sentences(text: str) -> list[str]:
+    """Segment *text* into sentences using NLTK."""
+    _ensure_punkt()
+    return [s.strip() for s in nltk.tokenize.sent_tokenize(text) if s.strip()]
 
 
 def chunk_text(text: str, max_chars: int) -> list[str]:
@@ -99,19 +100,17 @@ def chunk_text(text: str, max_chars: int) -> list[str]:
     if len(text) <= max_chars:
         return [text]
 
-    # High-quality multilingual sentence segmentation
-    sentences = [s.strip() for s in _lazy_segmenter().split(text)]
+    sentences = _sentences(text)
     chunks: list[str] = []
     buf: list[str] = []
     buf_len = 0
 
     for sent in sentences:
-        if not sent:
-            continue
-        # +1 for the space we add when joining
-        if buf_len + len(sent) + 1 <= max_chars:
+        # +1 accounts for the space we add when joining
+        candidate_len = buf_len + len(sent) + (1 if buf else 0)
+        if candidate_len <= max_chars:
             buf.append(sent)
-            buf_len += len(sent) + 1
+            buf_len = candidate_len
         else:
             chunks.append(" ".join(buf))
             buf = [sent]
@@ -126,13 +125,10 @@ def chunk_text(text: str, max_chars: int) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+@cache
 def _lazy_model(device: str) -> ChatterboxTTS:  # noqa: WPS430
     """Cache the TTS model so we only pay start-up cost once."""
-    if not hasattr(_lazy_model, "_cache"):
-        _lazy_model._cache = {}  # type: ignore[attr-defined]
-    if device not in _lazy_model._cache:  # type: ignore[attr-defined]
-        _lazy_model._cache[device] = ChatterboxTTS.from_pretrained(device=device)  # type: ignore[attr-defined]
-    return _lazy_model._cache[device]  # type: ignore[attr-defined]
+    return ChatterboxTTS.from_pretrained(device=device)
 
 
 def synthesize_one(
@@ -143,11 +139,10 @@ def synthesize_one(
     device: str | None = None,
     exaggeration: float = 0.5,
     cfg_weight: float = 0.4,
-    max_chars: int = 800,  # UPDATED default
+    max_chars: int = 800,
     overwrite: bool = False,
 ) -> None:
     """Synthesize *text* and write a single WAV file to *output_path*."""
-
     device = detect_device(device)
     patch_torch_load_for_mps()
 
@@ -174,31 +169,17 @@ def synthesize_one(
 
 
 def batch_synthesize(
-    inputs: Iterable[tuple[str, str]],  # (content, stem)
+    inputs: Iterable[tuple[str, str]],
     *,
     output_dir: Path,
     device: str | None = None,
     audio_prompt_path: Path | None = None,
     exaggeration: float = 0.5,
     cfg_weight: float = 0.5,
-    max_chars: int = 800,  # UPDATED default
+    max_chars: int = 800,
     overwrite: bool = False,
 ) -> list[Path]:
-    """High-level helper to synthesise multiple entries.
-
-    Parameters
-    ----------
-    inputs:
-        Iterable of ``(text, stem)`` tuples.  The *stem* is used to form the
-        filename ``{stem}.wav``.
-    output_dir:
-        Directory where WAV files will be written.
-
-    Returns
-    -------
-    list[Path]
-        Paths to all generated WAV files.
-    """
+    """High-level helper to synthesise multiple entries."""
     output_paths: list[Path] = []
     for text, stem in inputs:
         out_path = output_dir / f"{stem}.wav"

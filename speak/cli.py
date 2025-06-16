@@ -1,13 +1,17 @@
+# File: /Users/bryce/projects/speak/speak/cli.py
 """Typer wrapper around the *speak.core* utilities."""
 
 from __future__ import annotations
 
+import base64
 import sys
 from pathlib import Path
 
+import modal
 import typer
 from tqdm.auto import tqdm
 
+from speak import remote_modal
 from speak.core import batch_synthesize, slugify
 
 app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
@@ -33,7 +37,7 @@ def synthesize(
         Path("."),
         "--output-dir",
         "-o",
-        help="Directory where WAV files are saved.",
+        help="Directory where WAV files are saved (ignored when --remote is set).",
         show_default=True,
     ),
     overwrite: bool = typer.Option(
@@ -68,19 +72,26 @@ def synthesize(
         show_default=True,
     ),
     max_chars: int = typer.Option(
-        800,
+        600,
         min=200,
         help="Maximum characters per chunk before the text is split automatically.",
         show_default=True,
     ),
+    # NEW: remote execution
+    remote: bool = typer.Option(
+        False,
+        "--remote/--local",
+        help="Run synthesis on a GPU-backed Modal worker.",
+    ),
 ):
     """Entry-point for the *speak* executable."""
-
     if not text and not file:
         typer.secho("Error: provide --text and/or --file/-f", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
+    # ---------------------------------------------------------------------
     # Gather inputs
+    # ---------------------------------------------------------------------
     entries: list[tuple[str, str]] = []  # (text, stem)
     if text:
         entries.append((text, slugify(text)))
@@ -99,7 +110,38 @@ def synthesize(
         typer.secho("No valid input found.", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
-    # Synthesize (progress bar if >1)
+    # ---------------------------------------------------------------------
+    # Choose execution mode
+    # ---------------------------------------------------------------------
+    if remote:
+        # --------------------------------------------------------------
+        # Remote (Modal) execution
+        # --------------------------------------------------------------
+
+        prompt_bytes = audio_prompt_path.read_bytes() if audio_prompt_path else None
+
+        typer.secho("Submitting job to Modal…", fg=typer.colors.BLUE)
+        with modal.enable_output(), remote_modal.app.run():  # Ephemeral app
+            results = remote_modal.tts_remote.remote(
+                entries=entries,
+                device=device,
+                audio_prompt_bytes=prompt_bytes,
+                exaggeration=exaggeration,
+                cfg_weight=cfg_weight,
+                max_chars=max_chars,
+            )
+
+        # Write returned audio to local disk
+        out_dir = output_dir or Path(".")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for fname, b64_audio in results:
+            (out_dir / fname).write_bytes(base64.b64decode(b64_audio))
+            typer.secho(f"Saved {fname}", fg=typer.colors.GREEN)
+        return
+
+    # --------------------------------------------------------------
+    # Local execution (default)
+    # --------------------------------------------------------------
     total = len(entries)
     iter_entries = tqdm(entries, desc="Synthesising", unit="file", colour="green") if total > 1 else entries
 
@@ -119,8 +161,6 @@ def synthesize(
 
 
 # Allow `python -m speak.cli`
-
-
 def main() -> None:  # pragma: no cover
     app()
 
