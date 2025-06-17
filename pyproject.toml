@@ -16,7 +16,9 @@ dependencies = [
     "typer>=0.12",
     "nltk>=3.8",
     "modal>=1.0.4",
-    "pathspec"
+    "pathspec",
+    "numpy>=1.26",
+    "scipy>=1.11",
 ]
 
 [dependency-groups]

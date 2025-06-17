@@ -1,8 +1,8 @@
 """Modal app for remote TTS synthesis, rebuilt to use *uv* just like **logojudge**.
 
-This mirrors the ultra‑fast build pattern from *logojudge/backend/deploy/modal_app.py*:
+This mirrors the ultra-fast build pattern from *logojudge/backend/deploy/modal_app.py*:
 we copy the `uv` binary, then run `uv sync` against **pyproject.toml**/`uv.lock`
-instead of relying on the (now‑discouraged) ``Image.pip_install`` helper.
+instead of relying on the (now-discouraged) ``Image.pip_install`` helper.
 
 The function ``tts_remote`` is invoked by *speak.cli* when users call
 `speak synth --remote`, and returns a list ``[(filename, base64_wav_bytes), …]``.
@@ -14,7 +14,6 @@ import base64
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Tuple
 
 import modal
 import pathspec
@@ -22,7 +21,7 @@ import pathspec
 from speak.core import batch_synthesize
 
 # ------------------------------------------------------------------------------
-#   Project‑scoped helpers for selecting which files are sent to Modal
+#   Project-scoped helpers for selecting which files are sent to Modal
 # ------------------------------------------------------------------------------
 
 _SENTINELS: set[str] = {".git", ".hg", "pyproject.toml"}
@@ -47,7 +46,7 @@ _ALWAYS_IGNORE: list[str] = [
     "__pypackages__",
 ]
 
-# We skip resource‑heavy binary file types when sending code to Modal
+# We skip resource-heavy binary file types when sending code to Modal
 _EXCLUDE_EXTS: tuple[str, ...] = (
     ".wav",
     ".png",
@@ -81,17 +80,13 @@ def _iter_files(
     ignore: pathspec.PathSpec,
     *,
     exclude_exts: tuple[str, ...] = (),
-) -> List[Path]:
+) -> list[Path]:
     """Return every file under *directory* that is **not** ignored."""
     selected: list[Path] = []
 
     for root, dirs, files in os.walk(directory):
-        # Prune ignored directories **in‑place** for efficiency
-        dirs[:] = [
-            d
-            for d in dirs
-            if not ignore.match_file(os.path.relpath(Path(root, d), directory))
-        ]
+        # Prune ignored directories **in-place** for efficiency
+        dirs[:] = [d for d in dirs if not ignore.match_file(os.path.relpath(Path(root, d), directory))]
 
         for name in files:
             rel = os.path.relpath(Path(root, name), directory)
@@ -133,16 +128,11 @@ secrets: list[modal.Secret] = []
 
 image = (
     modal.Image.debian_slim()
-    # Ultra‑fast, “uv”‑driven build — mirrors logojudge
+    # Ultra-fast, “uv”-driven build — mirrors logojudge
     .dockerfile_commands(
         [
-            # 1) Prepare environment variables for uv’s multi‑layer caching
-            (
-                "ENV UV_COMPILE_BYTECODE=1 "
-                "UV_LINK_MODE=copy "
-                "UV_PYTHON_DOWNLOADS=0 "
-                "UV_PROJECT_ENVIRONMENT=/usr/local"
-            ),
+            # 1) Prepare environment variables for uv`s multi-layer caching
+            ("ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0 UV_PROJECT_ENVIRONMENT=/usr/local"),
             # 2) Copy the uv binary into the image
             "COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/",
             # 3) Ship *just* our dependency manifests for dependency resolution
@@ -156,25 +146,25 @@ image = (
 )
 
 # ------------------------------------------------------------------------------
-#   Remote entry‑point for TTS synthesis
+#   Remote entry-point for TTS synthesis
 # ------------------------------------------------------------------------------
 
 
 @app.function(
     image=image,
     secrets=secrets,
-    timeout=60 * 20,  # generous 20‑minute cap for large batches
+    timeout=60 * 20,  # generous 20-minute cap for large batches
     gpu="any",  # let Modal schedule on GPU if available
 )
 def tts_remote(
-    entries: List[Tuple[str, str]],
+    entries: list[tuple[str, str]],
     *,
     device: str | None = None,
     audio_prompt_bytes: bytes | None = None,
     exaggeration: float = 0.6,
     cfg_weight: float = 0.5,
     max_chars: int = 800,
-) -> List[Tuple[str, str]]:
+) -> list[tuple[str, str]]:
     """Synthesise *entries* and return ``[(filename, base64_audio), …]`` ready
     for download by the caller.
 
@@ -214,9 +204,9 @@ def tts_remote(
         )
 
         # --------------------------------------------------------------------------------
-        # Package results as base‑64 so we can shuttle bytes back to the client
+        # Package results as base-64 so we can shuttle bytes back to the client
         # --------------------------------------------------------------------------------
-        results: List[Tuple[str, str]] = []
+        results: list[tuple[str, str]] = []
         for _, stem in entries:
             fname = f"{stem}.wav"
             wav_bytes = (out_dir / fname).read_bytes()

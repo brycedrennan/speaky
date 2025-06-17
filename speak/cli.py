@@ -77,6 +77,12 @@ def synthesize(
         help="Maximum characters per chunk before the text is split automatically.",
         show_default=True,
     ),
+    # Debugging / inspection
+    save_chunks: bool = typer.Option(
+        False,
+        "--save-chunks/--no-save-chunks",
+        help="Write each generated chunk to a 'speak-chunks' folder alongside the final WAV. Useful for debugging.",
+    ),
     # NEW: remote execution
     remote: bool = typer.Option(
         False,
@@ -155,6 +161,7 @@ def synthesize(
             cfg_weight=cfg_weight,
             max_chars=max_chars,
             overwrite=overwrite,
+            save_chunks=save_chunks,
         )
 
     typer.secho("Done!", fg=typer.colors.GREEN)
