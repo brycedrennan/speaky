@@ -26,6 +26,7 @@ __all__ = [
     "patch_torch_load_for_mps",
     "slugify",
     "synthesize_one",
+    "trim_trailing_silence",  # NEW: export helper
 ]
 
 # ---------------------------------------------------------------------------
@@ -236,6 +237,7 @@ def synthesize_one(
     min_chunk_seconds: float = 0.3,
     min_sec_per_word: float = 0.12,
     max_retries: int = 3,
+    max_trailing_silence: float = 0.7,
 ) -> None:
     """Synthesize *text* and write a single WAV file to *output_path*."""
     device = detect_device(device)
@@ -271,20 +273,23 @@ def synthesize_one(
         # -----------------------------------------------------------------
         attempt = 0
         while True:
-            wav = model.generate(
+            generated = model.generate(
                 chunk,
                 audio_prompt_path=str(audio_prompt_path) if idx == 1 and audio_prompt_path else None,
                 exaggeration=exaggeration,
                 cfg_weight=cfg_weight,
             )
+            # NEW: glitch detection – run BEFORE silence trimming
+            raw_np = generated.detach().cpu().numpy().reshape(-1)
+            is_glitchy = glitchy_tail((raw_np, model.sr))
+
+            # Now trim excessive trailing silence for final acceptance
+            wav = trim_trailing_silence(generated, model.sr, max_silence_sec=max_trailing_silence)
+
             duration = wav.shape[-1] / model.sr
             # Dynamic minimum based on text length (word count)
             words = len(chunk.split()) or 1
             dynamic_min = max(min_chunk_seconds, words * min_sec_per_word)
-
-            # NEW: glitch detection
-            raw_np = wav.detach().cpu().numpy().reshape(-1)
-            is_glitchy = glitchy_tail((raw_np, model.sr))
 
             if (duration >= dynamic_min and not is_glitchy) or attempt >= max_retries:
                 break
@@ -318,6 +323,7 @@ def batch_synthesize(
     min_chunk_seconds: float = 0.3,
     min_sec_per_word: float = 0.12,
     max_retries: int = 3,
+    max_trailing_silence: float = 0.7,
 ) -> list[Path]:
     """High-level helper to synthesise multiple entries."""
     output_paths: list[Path] = []
@@ -336,6 +342,60 @@ def batch_synthesize(
             min_chunk_seconds=min_chunk_seconds,
             min_sec_per_word=min_sec_per_word,
             max_retries=max_retries,
+            max_trailing_silence=max_trailing_silence,
         )
         output_paths.append(out_path)
     return output_paths
+
+
+# ---------------------------------------------------------------------------
+# Utility helpers
+# ---------------------------------------------------------------------------
+
+def trim_trailing_silence(
+    wav: torch.Tensor,
+    sr: int,
+    max_silence_sec: float = 0.7,
+    silence_thresh_db: float = -45.0,
+) -> torch.Tensor:
+    """Return *wav* with excessive *trailing* silence trimmed.
+
+    Parameters
+    ----------
+    wav : torch.Tensor
+        Audio tensor shaped ``(channels, samples)`` in the range ``[-1, 1]``.
+    sr : int
+        Sample-rate of *wav*.
+    max_silence_sec : float, optional
+        Maximum trailing silence to *retain*, by default ``0.7`` seconds.
+    silence_thresh_db : float, optional
+        Samples whose amplitude is below this dBFS threshold are considered
+        "silent", by default ``-45 dB``.
+
+    Returns
+    -------
+    torch.Tensor
+        Trimmed audio tensor (a view when no trimming is necessary).
+    """
+
+    if wav.ndim != 2 or wav.shape[-1] == 0:
+        return wav  # Unexpected shape or empty – leave untouched
+
+    # Compute amplitude threshold from dB FS value
+    amp_thresh = 10 ** (silence_thresh_db / 20.0)
+
+    # Collapse channels by taking the maximum magnitude per sample
+    mag = wav.abs().max(dim=0).values
+
+    # Find last non-silent sample index
+    non_silence_idx = (mag > amp_thresh).nonzero(as_tuple=False)
+    if non_silence_idx.numel() == 0:
+        return wav  # All silence – do not risk returning empty tensor
+
+    last_loud = int(non_silence_idx[-1])
+    keep_until = min(wav.shape[-1], last_loud + int(max_silence_sec * sr))
+
+    if keep_until < wav.shape[-1]:
+        wav = wav[:, :keep_until]
+
+    return wav
