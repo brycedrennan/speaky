@@ -3,16 +3,17 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from functools import cache
 from typing import TYPE_CHECKING
 
 import nltk  # Using NLTK for sentence tokenization
-import numpy as np  # NEW: for glitch detection
-import scipy.io.wavfile as wav  # NEW: for glitch detection
 import torch
 import torchaudio as ta
 from chatterbox.tts import ChatterboxTTS
+
+from .glitch_detection import glitchy_tail  # moved to dedicated module
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -133,96 +134,6 @@ def _lazy_model(device: str) -> ChatterboxTTS:  # noqa: WPS430
     return ChatterboxTTS.from_pretrained(device=device)
 
 
-def glitchy_tail(
-    path_or_array,
-    lookback_sec: float = 3.0,
-    rms_win_ms: float = 20,
-    db_trigger: float = 6,
-    clip_thresh: float = 0.20,
-    clip_frac: float = 1e-3,
-) -> bool:
-    """Heuristic to detect the clipping/glitch artefact observed in some outputs.
-
-    Parameters
-    ----------
-    path_or_array : str | tuple[np.ndarray, int]
-        Path to a WAV file **or** a tuple ``(samples, sr)`` where *samples* is
-        a float or integer numpy array and *sr* the sample-rate.
-    lookback_sec : float, optional
-        Amount of audio (from the *end*) to inspect, by default ``3`` seconds.
-    rms_win_ms : float, optional
-        Size of the short-time RMS window used to compute the energy profile,
-        in milliseconds, by default ``20``.
-    db_trigger : float, optional
-        How many dB the tail may exceed the median RMS of the *earlier* part
-        of the file before it is considered a glitch, by default ``6``.
-    clip_thresh : float, optional
-        Absolute sample value that counts as "clipped", by default ``0.20``.
-    clip_frac : float, optional
-        Fraction of samples that must exceed *clip_thresh* to flag clipping,
-        by default ``1e-3``.
-
-    Returns
-    -------
-    bool
-        ``True`` if the tail appears glitchy / clipped, ``False`` otherwise.
-    """
-    # ---- Load ----
-    if isinstance(path_or_array, str):
-        sr, x = wav.read(path_or_array)
-    else:  # Assume caller gives (x, sr)
-        x, sr = path_or_array
-
-    # Convert to float32 in range [-1, 1]
-    x = x.astype(np.float32)
-    if x.dtype.kind in "iu":  # PCM → float
-        x /= np.iinfo(x.dtype).max or 1.0
-
-    # ---- Frame-level RMS (dB) ----
-    hop = win = int(sr * rms_win_ms / 1000)
-    if hop == 0:
-        return False  # Degenerate
-    rms_db: list[float] = []
-    for i in range(0, len(x) - win, hop):
-        frame = x[i : i + win]
-        rms = np.sqrt(np.mean(frame**2) + 1e-12)
-        rms_db.append(20 * np.log10(rms + 1e-12))
-    if not rms_db:
-        return False  # short clip — treat as non-glitchy
-
-    rms_db_arr = np.asarray(rms_db)
-
-    # ---- Split: body vs tail ----
-    tail_frames = int(lookback_sec / (rms_win_ms / 1000))
-    tail = rms_db_arr[-tail_frames:]
-    body = rms_db_arr[:-tail_frames] if len(rms_db_arr) > tail_frames else rms_db_arr
-
-    baseline = np.median(body) if len(body) else np.median(rms_db_arr)
-    loud_tail = (tail > baseline + db_trigger).mean() > 0.5  # >50 % hot
-
-    # ------------------------------------------------------------
-    # High-frequency/noise test based on mean absolute derivative
-    # ------------------------------------------------------------
-    # Need waveform samples for derivative; reload if not already present
-    tail_samples = x[-int(lookback_sec * sr) :] if "x" in locals() else None  # type: ignore[name-defined]
-    if tail_samples is None:
-        # Safeguard: if we somehow lost reference, fallback to non-glitch
-        return bool(loud_tail)
-
-    mad_tail = float(np.abs(np.diff(tail_samples)).mean()) if len(tail_samples) > 1 else 0.0
-    high_noise = mad_tail > 0.01  # Empirically tuned on sample data
-
-    # ------------------------------------------------------------
-    # High-frequency energy ratio (>5 kHz) — catches quiet static hiss
-    # ------------------------------------------------------------
-    spec = np.abs(np.fft.rfft(tail_samples)) ** 2  # Power spectrum
-    freqs = np.fft.rfftfreq(len(tail_samples), 1.0 / sr)
-    hf_ratio = float(spec[freqs > 5000].sum() / (spec.sum() + 1e-12))
-    high_hiss = hf_ratio > 0.1  # Tuned on corpus (good≈0.002, hiss≈0.18)
-
-    return bool(loud_tail or high_noise or high_hiss)
-
-
 def synthesize_one(
     text: str,
     *,
@@ -259,10 +170,15 @@ def synthesize_one(
         chunk_dir.mkdir(parents=True, exist_ok=True)
     audio_slug = output_path.stem
 
+    logger = logging.getLogger(__name__)
+
     for idx, chunk in enumerate(chunks, start=1):
         # -----------------------------------------------------------------
         # Locate starting character index for this chunk (best-effort)
         # -----------------------------------------------------------------
+        # Print the chunk text before processing for easier debugging/inspection
+        print(f"Chunk {idx}/{len(chunks)}: {chunk}")
+
         start_idx = text.find(chunk, search_pos)
         if start_idx == -1:
             start_idx = search_pos  # Fallback
@@ -279,7 +195,7 @@ def synthesize_one(
                 exaggeration=exaggeration,
                 cfg_weight=cfg_weight,
             )
-            # NEW: glitch detection – run BEFORE silence trimming
+            # NEW: glitch detection - run BEFORE silence trimming
             raw_np = generated.detach().cpu().numpy().reshape(-1)
             is_glitchy = glitchy_tail((raw_np, model.sr))
 
@@ -290,6 +206,23 @@ def synthesize_one(
             # Dynamic minimum based on text length (word count)
             words = len(chunk.split()) or 1
             dynamic_min = max(min_chunk_seconds, words * min_sec_per_word)
+
+            # Log warnings if the generated audio is considered bad and will be retried
+            if duration < dynamic_min:
+                logger.warning(
+                    "Chunk %s attempt %s flagged as too short (%.2fs < %.2fs). Retrying…",
+                    idx,
+                    attempt,
+                    duration,
+                    dynamic_min,
+                )
+
+            if is_glitchy:
+                logger.warning(
+                    "Chunk %s attempt %s appears glitchy/clipped according to heuristic. Retrying…",
+                    idx,
+                    attempt,
+                )
 
             if (duration >= dynamic_min and not is_glitchy) or attempt >= max_retries:
                 break
@@ -352,6 +285,7 @@ def batch_synthesize(
 # Utility helpers
 # ---------------------------------------------------------------------------
 
+
 def trim_trailing_silence(
     wav: torch.Tensor,
     sr: int,
@@ -379,7 +313,7 @@ def trim_trailing_silence(
     """
 
     if wav.ndim != 2 or wav.shape[-1] == 0:
-        return wav  # Unexpected shape or empty – leave untouched
+        return wav  # Unexpected shape or empty - leave untouched
 
     # Compute amplitude threshold from dB FS value
     amp_thresh = 10 ** (silence_thresh_db / 20.0)
@@ -390,7 +324,7 @@ def trim_trailing_silence(
     # Find last non-silent sample index
     non_silence_idx = (mag > amp_thresh).nonzero(as_tuple=False)
     if non_silence_idx.numel() == 0:
-        return wav  # All silence – do not risk returning empty tensor
+        return wav  # All silence - do not risk returning empty tensor
 
     last_loud = int(non_silence_idx[-1])
     keep_until = min(wav.shape[-1], last_loud + int(max_silence_sec * sr))

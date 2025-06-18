@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 init: install-uv ## Setup a dev environment for local development.
-	uv sync --all-extras
+	uv sync --all-extras --dev
 	uv tool install ruff@0.0.287
 	@echo -e "\nEnvironment setup! ✨ 🍰 ✨ 🐍 \n"
 	@echo -e "The following commands are available to run in the Makefile\n"
