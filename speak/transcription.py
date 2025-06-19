@@ -1,4 +1,4 @@
-"""ASR transcription and verification utilities using faster-whisper.
+"""ASR transcription and verification utilities using **Distil-Whisper**.
 
 This module centralises all functionality related to automatic speech
 recognition (ASR) so that *speak.core* can focus solely on text-to-speech.
@@ -16,7 +16,12 @@ import difflib
 
 import torch
 import torchaudio as ta
-from faster_whisper import WhisperModel  # type: ignore
+from types import SimpleNamespace
+from transformers import (
+    AutoModelForSpeechSeq2Seq,
+    AutoProcessor,
+    pipeline,
+)  # type: ignore
 
 __all__ = [
     "_chunk_passes_asr",  # Verification helper
@@ -51,12 +56,72 @@ def _normalize_for_compare(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-@cache
-def _lazy_asr_model(device: str, model_size: str = "small") -> WhisperModel:  # noqa: WPS110
-    """Return (and cache) a *faster-whisper* model suited to *device*."""
+class _DistilWhisperASR:  # noqa: WPS110
+    """Light wrapper to provide a *faster-whisper*-like interface.
 
-    compute_type = "int8" if device == "cpu" else "float16"
-    return WhisperModel(model_size, device=device, compute_type=compute_type)
+    The wrapper exposes a ``transcribe`` method that returns ``(segments, info)``
+    where *segments* is a list of objects each exposing a ``text`` attribute.
+    This matches the interface expected by the rest of *speak* while delegating
+    the heavy-lifting to a 🤗 *transformers* ASR pipeline running Distil-Whisper.
+    """
+
+    def __init__(self, pipe):
+        self._pipe = pipe
+
+    # NOTE: *beam_size* and other kwargs are accepted for API compatibility but
+    # are currently ignored because the underlying pipeline already chooses
+    # sensible defaults for fast inference.
+    def transcribe(self, audio_path: str, *_, **__) -> tuple[list[SimpleNamespace], dict]:  # noqa: D401, WPS110
+        result = self._pipe(audio_path)
+        text = result["text"].strip()
+        segment = SimpleNamespace(text=text)
+        # Mimic faster-whisper return signature → (segments, info)
+        return [segment], {"model": "distil-whisper"}
+
+
+def _model_id_for_size(model_size: str) -> str:  # noqa: WPS110
+    """Return the 🤗 model hub ID corresponding to *model_size*."""
+
+    # Allow callers to pass a fully-qualified model ID directly
+    if "/" in model_size:
+        return model_size
+
+    size = model_size.lower()
+    mapping = {
+        "small": "distil-whisper/distil-small.en",
+        "medium": "distil-whisper/distil-medium.en",
+        "large": "distil-whisper/distil-large-v3",
+    }
+    return mapping.get(size, model_size)
+
+
+@cache
+def _lazy_asr_model(device: str, model_size: str = "small") -> _DistilWhisperASR:  # noqa: WPS110
+    """Return (and cache) a Distil-Whisper ASR wrapper suited to *device*."""
+
+    torch_dtype = torch.float16 if device in {"cuda", "mps"} or device.startswith("cuda") else torch.float32
+
+    model_id = _model_id_for_size(model_size)
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        model_id,
+        torch_dtype=torch_dtype,
+        low_cpu_mem_usage=True,
+        use_safetensors=True,
+    )
+    model.to(device)
+
+    processor = AutoProcessor.from_pretrained(model_id)
+
+    asr_pipe = pipeline(
+        "automatic-speech-recognition",
+        model=model,
+        tokenizer=processor.tokenizer,
+        feature_extractor=processor.feature_extractor,
+        torch_dtype=torch_dtype,
+        device=device,
+    )
+
+    return _DistilWhisperASR(asr_pipe)
 
 
 # ---------------------------------------------------------------------------

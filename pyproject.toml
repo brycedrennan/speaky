@@ -19,7 +19,8 @@ dependencies = [
     "pathspec",
     "numpy>=1.26",
     "scipy>=1.11",
-    "faster-whisper>=1.1.1",
+    "transformers>=4.36",
+    "accelerate>=0.24",
 ]
 
 [dependency-groups]
