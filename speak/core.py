@@ -13,7 +13,9 @@ import torch
 import torchaudio as ta
 from chatterbox.tts import ChatterboxTTS
 
-from .glitch_detection import glitchy_tail  # moved to dedicated module
+# Local package helpers
+from speak.glitch_detection import glitchy_tail
+from speak.transcription import _chunk_passes_asr
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -149,8 +151,18 @@ def synthesize_one(
     min_sec_per_word: float = 0.12,
     max_retries: int = 3,
     max_trailing_silence: float = 0.7,
+    verify_with_asr: bool = True,
+    asr_model_size: str = "small",
+    max_missing_ratio: float = 0.10,
 ) -> None:
-    """Synthesize *text* and write a single WAV file to *output_path*."""
+    """Synthesize *text* and write a single WAV file to *output_path*.
+
+    When *verify_with_asr* is set, each generated chunk is fed through an
+    (optional) *faster-whisper* ASR model. The chunk is accepted only if the
+    majority of words (as defined by *max_missing_ratio*) appear in the
+    transcription, providing an automatic safeguard that the TTS actually
+    uttered the requested text.
+    """
     device = detect_device(device)
     patch_torch_load_for_mps()
 
@@ -224,7 +236,39 @@ def synthesize_one(
                     attempt,
                 )
 
-            if (duration >= dynamic_min and not is_glitchy) or attempt >= max_retries:
+            # -----------------------------------------------------------------
+            # Optional ASR verification (faster-whisper)
+            # -----------------------------------------------------------------
+            asr_ok = True
+            if verify_with_asr:
+                try:
+                    asr_ok = _chunk_passes_asr(
+                        wav,
+                        model.sr,
+                        chunk,
+                        device,
+                        max_missing_ratio=max_missing_ratio,
+                        model_size=asr_model_size,
+                    )
+                except Exception as exc:  # noqa: BLE001 - any ASR failure triggers retry
+                    logger.warning(
+                        "Chunk %s attempt %s failed ASR verification due to error: %s. Retrying…",
+                        idx,
+                        attempt,
+                        exc,
+                    )
+                    asr_ok = False
+
+            if verify_with_asr and not asr_ok:
+                logger.warning(
+                    "Chunk %s attempt %s failed ASR word match threshold. Retrying…",
+                    idx,
+                    attempt,
+                )
+
+            meet_quality = duration >= dynamic_min and not is_glitchy and (not verify_with_asr or asr_ok)
+
+            if meet_quality or attempt >= max_retries:
                 break
             attempt += 1
 
@@ -257,6 +301,9 @@ def batch_synthesize(
     min_sec_per_word: float = 0.12,
     max_retries: int = 3,
     max_trailing_silence: float = 0.7,
+    verify_with_asr: bool = True,
+    asr_model_size: str = "small",
+    max_missing_ratio: float = 0.10,
 ) -> list[Path]:
     """High-level helper to synthesise multiple entries."""
     output_paths: list[Path] = []
@@ -276,6 +323,9 @@ def batch_synthesize(
             min_sec_per_word=min_sec_per_word,
             max_retries=max_retries,
             max_trailing_silence=max_trailing_silence,
+            verify_with_asr=verify_with_asr,
+            asr_model_size=asr_model_size,
+            max_missing_ratio=max_missing_ratio,
         )
         output_paths.append(out_path)
     return output_paths

@@ -1,4 +1,4 @@
-# voiceit 
+# speak 
 
 ## Development
 
@@ -10,6 +10,8 @@
  - `make typecheck` run type checker
  - `make test` run tests
  - `make check` run all checks (format, lint, typecheck, test)
+ - `uv add pkg` add a python dependency
+ - `uv run -- python foo/bar.py` run arbitrary command in python env
 
 ### Code Conventions
 
