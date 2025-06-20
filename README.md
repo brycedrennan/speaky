@@ -8,6 +8,7 @@ Generate natural‑sounding speech from plain text—locally on your GPU/CPU usi
 ## Features
 
 * **Voice cloning** from a short audio prompt (optional)
+* **Built‑in voices** accessible via `-v NAME`
 * **Emotion control** via exaggeration & classifier‑free guidance
 * **Device auto‑detection** — Apple Silicon (*mps*), CUDA GPUs, or CPU
 * **Smart sentence chunking** (NLTK) to handle long passages gracefully
@@ -36,6 +37,7 @@ uv tool install speaky
 | Say a sentence    | `speak "Hello, world!"`                            |
 | Batch from a file | `speak -f script.txt -o voiceovers/`                      |
 | Clone a voice     | `speak "How do I sound?" --voice my_prompt.wav`    |
+| Use built-in voice| `speak "Join me" -v vader`                         |
 | Dial up the drama | `speak "This is **exciting**!" --exaggeration 1.2` |
 
 All outputs are MP3 files named after the text (or file stem) and saved to the current directory unless you pass `--output-dir`.
