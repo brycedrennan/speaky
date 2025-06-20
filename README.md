@@ -1,4 +1,80 @@
-# speak 
+# Speak
+
+**Text‑to‑Speech made easy with Chatterbox TTS**
+Generate natural‑sounding speech from plain text—locally on your GPU/CPU using a single, ergonomic command‑line tool **and** a clean Python API.
+
+---
+
+## Features
+
+* **Voice cloning** from a short audio prompt (optional)
+* **Emotion control** via exaggeration & classifier‑free guidance
+* **Device auto‑detection** — Apple Silicon (*mps*), CUDA GPUs, or CPU
+* **Smart sentence chunking** (NLTK) to handle long passages gracefully
+* **Trailing‑silence trimming** so outputs end crisply
+* **Glitch / clipping detection** heuristic for cleaner audio
+* **verification via transcription** (Distil‑Whisper) to catch missing words
+* **Batch synthesis** with per‑file progress bars
+
+
+---
+
+## 🛠 Installation
+
+### Stable release
+
+```bash
+pip install speak
+```
+
+### Latest from source
+
+```bash
+pip install git+https://github.com/brycedrennan/speak.git
+```
+
+> **Requirements:** Python ≥ 3.12 and a matching build of **PyTorch 2.2+** (plus `torchaudio`). If you plan on GPU synthesis, install the CUDA or MPS wheels as usual.
+
+---
+
+## 🚀 Quickstart (CLI)
+
+> The CLI groups everything under a single sub‑command: `speak synth`.
+
+| Task              | Command                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| Say a sentence    | `speak synth --text "Hello, world!"`                            |
+| Batch from a file | `speak synth -f script.txt -o voiceovers/`                      |
+| Clone a voice     | `speak synth --text "How do I sound?" --voice my_prompt.wav`    |
+| Dial up the drama | `speak synth --text "This is **exciting**!" --exaggeration 1.2` |
+
+All outputs are WAV files named after the text (or file stem) and saved to the current directory unless you pass `--output-dir`.
+
+### Common flags
+
+* `--device` `cuda|mps|cpu`  • *override auto‑detect*
+* `--cfg-weight FLOAT`  • classifier‑free guidance mix (0‑1)
+* `--max-chars INT`  • soft limit per chunk (default 800)
+* `--save-chunks`  • keep intermediate WAVs for debugging
+* `--overwrite`  • replace existing files
+
+Run `speak synth --help` for the full list.
+
+---
+
+## 🐍 Python API
+
+```python
+from pathlib import Path
+from speak.core import batch_synthesize
+
+batch_synthesize(
+    inputs=[("Hello there!", "greeting")],  # (text, stem)
+    output_dir=Path("out"),
+)
+```
+
+The helper wraps all the goodies—chunking, glitch detection, ASR verification, etc.—while caching the heavy TTS model for speed.
 
 ## Development
 
