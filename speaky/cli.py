@@ -55,7 +55,7 @@ def synthesize(
         None,
         "--voice",
         "-v",
-        help="Path to an audio prompt for voice cloning (optional).",
+        help="Path to an audio prompt or name of a built-in voice.",
     ),
     exaggeration: float = typer.Option(
         0.6,
@@ -95,6 +95,19 @@ def synthesize(
     if not text and not file:
         typer.secho("Error: provide TEXT and/or --file/-f", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
+
+    if audio_prompt_path and not audio_prompt_path.exists():
+        candidate = audio_prompt_path.stem
+        try:
+            audio_prompt_path = core.get_voice_path(candidate)
+        except KeyError:
+            available = ", ".join(sorted(core.available_voices()))
+            typer.secho(
+                f"Unknown voice '{candidate}'. Available voices: {available}",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
 
     # ---------------------------------------------------------------------
     # Gather inputs
