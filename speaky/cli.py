@@ -21,8 +21,13 @@ if TYPE_CHECKING:  # pragma: no cover - hints only
 app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
 
 
-@app.command("synth")
+@app.command(name=None)
 def synthesize(
+    text_args: list[str] = typer.Argument(
+        None,
+        metavar="TEXT",
+        help="Text to synthesise (can be given without --text).",
+    ),
     # Input
     text: str | None = typer.Option(
         None,
@@ -41,7 +46,7 @@ def synthesize(
         Path("."),
         "--output-dir",
         "-o",
-        help="Directory where WAV files are saved (ignored when --remote is set).",
+        help="Directory where MP3 files are saved (ignored when --remote is set).",
         show_default=True,
     ),
     overwrite: bool = typer.Option(
@@ -85,7 +90,7 @@ def synthesize(
     save_chunks: bool = typer.Option(
         False,
         "--save-chunks/--no-save-chunks",
-        help="Write each generated chunk to a 'speak-chunks' folder alongside the final WAV. Useful for debugging.",
+        help="Write each generated chunk to a 'speak-chunks' folder alongside the final MP3. Useful for debugging.",
     ),
 ):
     """Entry-point for the *speak* executable."""
@@ -93,8 +98,11 @@ def synthesize(
 
     from speaky.core import batch_synthesize, slugify
 
+    if not text and text_args:
+        text = " ".join(text_args)
+
     if not text and not file:
-        typer.secho("Error: provide --text and/or --file/-f", fg=typer.colors.RED, err=True)
+        typer.secho("Error: provide TEXT and/or --file/-f", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
     # ---------------------------------------------------------------------

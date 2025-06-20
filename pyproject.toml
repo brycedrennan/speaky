@@ -34,6 +34,7 @@ dev = [
     "pytest-sugar",
     "ruff",
     "twine",
+    "ty>=0.0.1a11",
     "wheel",
 ]
 
