@@ -29,14 +29,14 @@ uv tool install speaky
 
 ## 🚀 Quickstart (CLI)
 
-> The CLI groups everything under a single sub‑command: `speak synth`.
+> The CLI exposes a single command: `speak`.
 
 | Task              | Command                                                         |
 | ----------------- | --------------------------------------------------------------- |
-| Say a sentence    | `speak --text "Hello, world!"`                            |
+| Say a sentence    | `speak "Hello, world!"`                            |
 | Batch from a file | `speak -f script.txt -o voiceovers/`                      |
-| Clone a voice     | `speak --text "How do I sound?" --voice my_prompt.wav`    |
-| Dial up the drama | `speak --text "This is **exciting**!" --exaggeration 1.2` |
+| Clone a voice     | `speak "How do I sound?" --voice my_prompt.wav`    |
+| Dial up the drama | `speak "This is **exciting**!" --exaggeration 1.2` |
 
 All outputs are WAV files named after the text (or file stem) and saved to the current directory unless you pass `--output-dir`.
 

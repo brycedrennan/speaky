@@ -17,8 +17,13 @@ from speaky.core import batch_synthesize, slugify
 app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
 
 
-@app.command("synth")
+@app.command(name=None)
 def synthesize(
+    text_args: list[str] = typer.Argument(
+        None,
+        metavar="TEXT",
+        help="Text to synthesise (can be given without --text).",
+    ),
     # Input
     text: str | None = typer.Option(
         None,
@@ -85,8 +90,11 @@ def synthesize(
     ),
 ):
     """Entry-point for the *speak* executable."""
+    if not text and text_args:
+        text = " ".join(text_args)
+
     if not text and not file:
-        typer.secho("Error: provide --text and/or --file/-f", fg=typer.colors.RED, err=True)
+        typer.secho("Error: provide TEXT and/or --file/-f", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
     # ---------------------------------------------------------------------
