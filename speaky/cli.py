@@ -88,6 +88,7 @@ def synthesize(
     from tqdm.auto import tqdm
 
     from speaky import core
+    from speaky.voices import available_voices, get_voice_path
 
     if not text and text_args:
         text = " ".join(text_args)
@@ -96,18 +97,22 @@ def synthesize(
         typer.secho("Error: provide TEXT and/or --file/-f", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
 
+    voice_all = False
     if audio_prompt_path and not audio_prompt_path.exists():
         candidate = audio_prompt_path.stem
-        try:
-            audio_prompt_path = core.get_voice_path(candidate)
-        except KeyError:
-            available = ", ".join(sorted(core.available_voices()))
-            typer.secho(
-                f"Unknown voice '{candidate}'. Available voices: {available}",
-                fg=typer.colors.RED,
-                err=True,
-            )
-            raise typer.Exit(code=1)
+        if candidate.lower() == "all":
+            voice_all = True
+        else:
+            try:
+                audio_prompt_path = get_voice_path(candidate)
+            except KeyError:
+                available = ", ".join(sorted(available_voices()))
+                typer.secho(
+                    f"Unknown voice '{candidate}'. Available voices: {available}",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(code=1)
 
     # ---------------------------------------------------------------------
     # Gather inputs
@@ -168,20 +173,39 @@ def synthesize(
     # Local execution (default)
     # --------------------------------------------------------------
     total = len(entries)
-    iter_entries = tqdm(entries, desc="Synthesising", unit="file", colour="green") if total > 1 else entries
 
-    for text_entry, stem in iter_entries:
-        core.batch_synthesize(
-            [(text_entry, stem)],
-            output_dir=output_dir,
-            device=device,
-            audio_prompt_path=audio_prompt_path,
-            exaggeration=exaggeration,
-            cfg_weight=cfg_weight,
-            max_chars=max_chars,
-            overwrite=overwrite,
-            save_chunks=save_chunks,
-        )
+    if voice_all:
+        for voice_name in sorted(available_voices()):
+            voice_path = get_voice_path(voice_name)
+            tagged = [(text_entry, f"{stem}-{voice_name}") for text_entry, stem in entries]
+            tqdm_desc = f"Synthesising {voice_name}" if total > 1 else None
+            iter_entries = tqdm(tagged, desc=tqdm_desc, unit="file", colour="green") if tqdm_desc else tagged
+            for text_entry, stem in iter_entries:
+                core.batch_synthesize(
+                    [(text_entry, stem)],
+                    output_dir=output_dir,
+                    device=device,
+                    audio_prompt_path=voice_path,
+                    exaggeration=exaggeration,
+                    cfg_weight=cfg_weight,
+                    max_chars=max_chars,
+                    overwrite=overwrite,
+                    save_chunks=save_chunks,
+                )
+    else:
+        iter_entries = tqdm(entries, desc="Synthesising", unit="file", colour="green") if total > 1 else entries
+        for text_entry, stem in iter_entries:
+            core.batch_synthesize(
+                [(text_entry, stem)],
+                output_dir=output_dir,
+                device=device,
+                audio_prompt_path=audio_prompt_path,
+                exaggeration=exaggeration,
+                cfg_weight=cfg_weight,
+                max_chars=max_chars,
+                overwrite=overwrite,
+                save_chunks=save_chunks,
+            )
 
     typer.secho("Done!", fg=typer.colors.GREEN)
 
