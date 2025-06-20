@@ -83,6 +83,11 @@ def synthesize(
         "--save-chunks/--no-save-chunks",
         help="Write each generated chunk to a 'speak-chunks' folder alongside the final MP3. Useful for debugging.",
     ),
+    save_rejects: bool = typer.Option(
+        False,
+        "--save-rejects/--no-save-rejects",
+        help="Also save failed generation attempts to 'speak-rejects'.",
+    ),
 ):
     """Entry-point for the *speak* executable."""
     from tqdm.auto import tqdm
@@ -191,6 +196,7 @@ def synthesize(
                     max_chars=max_chars,
                     overwrite=overwrite,
                     save_chunks=save_chunks,
+                    save_rejects=save_rejects,
                 )
     else:
         iter_entries = tqdm(entries, desc="Synthesising", unit="file", colour="green") if total > 1 else entries
@@ -205,6 +211,7 @@ def synthesize(
                 max_chars=max_chars,
                 overwrite=overwrite,
                 save_chunks=save_chunks,
+                save_rejects=save_rejects,
             )
 
     typer.secho("Done!", fg=typer.colors.GREEN)

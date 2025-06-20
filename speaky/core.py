@@ -147,6 +147,7 @@ def synthesize_one(
     max_chars: int = 800,
     overwrite: bool = False,
     save_chunks: bool = False,
+    save_rejects: bool = False,
     min_chunk_seconds: float = 0.3,
     min_sec_per_word: float = 0.12,
     max_retries: int = 3,
@@ -162,6 +163,10 @@ def synthesize_one(
     majority of words (as defined by *max_missing_ratio*) appear in the
     transcription, providing an automatic safeguard that the TTS actually
     uttered the requested text.
+
+    If ``save_chunks`` is ``True`` the final audio for each chunk is written to
+    a ``speak-chunks`` directory.  When ``save_rejects`` is also ``True`` all
+    failed attempts are saved to ``speak-rejects`` for debugging.
     """
     device = detect_device(device)
     patch_torch_load_for_mps()
@@ -180,6 +185,9 @@ def synthesize_one(
     if save_chunks:
         chunk_dir = (output_path.parent / "speak-chunks").resolve()
         chunk_dir.mkdir(parents=True, exist_ok=True)
+    if save_rejects:
+        reject_dir = (output_path.parent / "speak-rejects").resolve()
+        reject_dir.mkdir(parents=True, exist_ok=True)
     audio_slug = output_path.stem
 
     logger = logging.getLogger(__name__)
@@ -269,6 +277,10 @@ def synthesize_one(
 
             if meet_quality or attempt >= max_retries:
                 break
+            if save_rejects:
+                chunk_slug = slugify(chunk, max_len=50)
+                rname = f"{audio_slug}_{idx}_{start_idx}_{chunk_slug}_attempt{attempt}.wav"
+                ta.save(str(reject_dir / rname), wav, model.sr)
             attempt += 1
 
         # -----------------------------------------------------------------
@@ -296,6 +308,7 @@ def batch_synthesize(
     max_chars: int = 800,
     overwrite: bool = False,
     save_chunks: bool = False,
+    save_rejects: bool = False,
     min_chunk_seconds: float = 0.3,
     min_sec_per_word: float = 0.12,
     max_retries: int = 3,
@@ -304,7 +317,12 @@ def batch_synthesize(
     asr_model_size: str = "small",
     max_missing_ratio: float = 0.02,
 ) -> list[Path]:
-    """High-level helper to synthesise multiple entries."""
+    """High-level helper to synthesise multiple entries.
+
+    The ``save_chunks`` and ``save_rejects`` flags mirror those in
+    :func:`synthesize_one` and control whether intermediate audio files are
+    written to disk for debugging.
+    """
     output_paths: list[Path] = []
     for text, stem in inputs:
         out_path = output_dir / f"{stem}.mp3"
@@ -318,6 +336,7 @@ def batch_synthesize(
             max_chars=max_chars,
             overwrite=overwrite,
             save_chunks=save_chunks,
+            save_rejects=save_rejects,
             min_chunk_seconds=min_chunk_seconds,
             min_sec_per_word=min_sec_per_word,
             max_retries=max_retries,
