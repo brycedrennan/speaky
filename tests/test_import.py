@@ -1,2 +1,2 @@
 def test_import():
-    import speak  # noqa
+    import speaky  # noqa

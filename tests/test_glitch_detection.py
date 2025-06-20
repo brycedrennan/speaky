@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from speak.glitch_detection import glitchy_tail
+from speaky.glitch_detection import glitchy_tail
 
 DATA_DIR = Path(__file__).parent / "data"
 

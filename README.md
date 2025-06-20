@@ -1,4 +1,4 @@
-# Speak
+# Speaky
 
 **Text‑to‑Speech made easy with Chatterbox TTS**
 Generate natural‑sounding speech from plain text—locally on your GPU/CPU using a single, ergonomic command‑line tool **and** a clean Python API.
@@ -22,7 +22,7 @@ Generate natural‑sounding speech from plain text—locally on your GPU/CPU usi
 ## 🛠 Installation
 
 ```bash
-uv tool install speak
+uv tool install speaky
 ```
 
 ---
@@ -43,11 +43,11 @@ All outputs are WAV files named after the text (or file stem) and saved to the c
 ### Common flags
 
 * `--cfg-weight FLOAT`  • classifier‑free guidance mix (0‑1)
-* `--max-chars INT`  • soft limit per chunk (default 800)
+* `--max-chars INT`  • soft limit per chunk (450)
 * `--save-chunks`  • keep intermediate WAVs for debugging
 * `--overwrite`  • replace existing files
 
-Run `speak synth --help` for the full list.
+Run `speak --help` for the full list.
 
 ---
 
@@ -55,7 +55,7 @@ Run `speak synth --help` for the full list.
 
 ```python
 from pathlib import Path
-from speak.core import batch_synthesize
+from speaky.core import batch_synthesize
 
 batch_synthesize(
     inputs=[("Hello there!", "greeting")],  # (text, stem)

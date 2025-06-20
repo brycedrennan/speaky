@@ -18,7 +18,7 @@ from pathlib import Path
 import modal
 import pathspec
 
-from speak.core import batch_synthesize
+from speaky.core import batch_synthesize
 
 # ------------------------------------------------------------------------------
 #   Project-scoped helpers for selecting which files are sent to Modal

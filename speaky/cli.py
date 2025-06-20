@@ -11,8 +11,8 @@ import modal
 import typer
 from tqdm.auto import tqdm
 
-from speak import remote_modal
-from speak.core import batch_synthesize, slugify
+from speaky import remote_modal
+from speaky.core import batch_synthesize, slugify
 
 app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
 

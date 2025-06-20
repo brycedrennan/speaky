@@ -14,8 +14,8 @@ import torchaudio as ta
 from chatterbox.tts import ChatterboxTTS
 
 # Local package helpers
-from speak.glitch_detection import glitchy_tail
-from speak.transcription import _chunk_passes_asr
+from speaky.glitch_detection import glitchy_tail
+from speaky.transcription import _chunk_passes_asr
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
