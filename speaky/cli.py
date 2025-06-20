@@ -42,7 +42,7 @@ def synthesize(
         Path("."),
         "--output-dir",
         "-o",
-        help="Directory where WAV files are saved (ignored when --remote is set).",
+        help="Directory where MP3 files are saved (ignored when --remote is set).",
         show_default=True,
     ),
     overwrite: bool = typer.Option(
@@ -86,7 +86,7 @@ def synthesize(
     save_chunks: bool = typer.Option(
         False,
         "--save-chunks/--no-save-chunks",
-        help="Write each generated chunk to a 'speak-chunks' folder alongside the final WAV. Useful for debugging.",
+        help="Write each generated chunk to a 'speak-chunks' folder alongside the final MP3. Useful for debugging.",
     ),
 ):
     """Entry-point for the *speak* executable."""

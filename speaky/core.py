@@ -155,7 +155,7 @@ def synthesize_one(
     asr_model_size: str = "small",
     max_missing_ratio: float = 0.02,
 ) -> None:
-    """Synthesize *text* and write a single WAV file to *output_path*.
+    """Synthesize *text* and write a single MP3 file to *output_path*.
 
     When *verify_with_asr* is set, each generated chunk is fed through an
     (optional) *faster-whisper* ASR model. The chunk is accepted only if the
@@ -282,7 +282,7 @@ def synthesize_one(
         wavs.append(wav)
 
     final_wav = torch.cat(wavs, dim=1) if len(wavs) > 1 else wavs[0]
-    ta.save(str(output_path), final_wav, model.sr)
+    ta.save(str(output_path), final_wav, model.sr, format="mp3")
 
 
 def batch_synthesize(
@@ -307,7 +307,7 @@ def batch_synthesize(
     """High-level helper to synthesise multiple entries."""
     output_paths: list[Path] = []
     for text, stem in inputs:
-        out_path = output_dir / f"{stem}.wav"
+        out_path = output_dir / f"{stem}.mp3"
         synthesize_one(
             text,
             output_path=out_path,
