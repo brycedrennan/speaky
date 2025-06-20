@@ -1,6 +1,7 @@
 from typer.testing import CliRunner
 
 import speaky.cli as cli
+from speaky import core
 
 
 def test_positional_text(monkeypatch, tmp_path):
@@ -11,7 +12,7 @@ def test_positional_text(monkeypatch, tmp_path):
         called["output_dir"] = output_dir
         return [tmp_path / "x.wav"]
 
-    monkeypatch.setattr(cli, "batch_synthesize", fake_batch)
+    monkeypatch.setattr(core, "batch_synthesize", fake_batch)
     runner = CliRunner()
     result = runner.invoke(cli.app, ["hello"], catch_exceptions=False)
 

@@ -6,17 +6,8 @@ from __future__ import annotations
 import base64
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import typer
-
-if TYPE_CHECKING:  # pragma: no cover - hints only
-    from tqdm.auto import tqdm as _tqdm  # noqa: F401
-
-    from speaky.core import (
-        batch_synthesize as _batch_synthesize,  # noqa: F401
-        slugify as _slugify,  # noqa: F401
-    )
 
 app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
 
@@ -96,7 +87,7 @@ def synthesize(
     """Entry-point for the *speak* executable."""
     from tqdm.auto import tqdm
 
-    from speaky.core import batch_synthesize, slugify
+    from speaky import core
 
     if not text and text_args:
         text = " ".join(text_args)
@@ -111,7 +102,7 @@ def synthesize(
     entries: list[tuple[str, str]] = []  # (text, stem)
     remote = False
     if text:
-        entries.append((text, slugify(text)))
+        entries.append((text, core.slugify(text)))
     for path in file or []:
         try:
             content = path.read_text(encoding="utf-8").strip()
@@ -167,7 +158,7 @@ def synthesize(
     iter_entries = tqdm(entries, desc="Synthesising", unit="file", colour="green") if total > 1 else entries
 
     for text_entry, stem in iter_entries:
-        batch_synthesize(
+        core.batch_synthesize(
             [(text_entry, stem)],
             output_dir=output_dir,
             device=device,
