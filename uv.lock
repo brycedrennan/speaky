@@ -1882,7 +1882,7 @@ wheels = [
 ]
 
 [[package]]
-name = "speak"
+name = "speaky"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },

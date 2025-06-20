@@ -37,8 +37,8 @@ checku: afu lint typecheck test ## Run all checks with unsafe autoformatting.
 publish:  ## Build and upload the package to PyPI.
 	@echo -e "\n\033[0;34m📦 Building and uploading to PyPI...\033[0m\n"
 	@rm -rf dist
-	@uv run -- python -m build
-	@uv run -- twine upload dist/* --repository pypi -u __token__
+	@uv run --frozen -- python -m build
+	@uv run --frozen -- twine upload dist/* --repository pypi -u __token__
 	@echo "\n\033[0;32m✅ 📦 Package published successfully to pypi! ✨ 🍰 ✨\033[0m\n"
 
 install-uv:  # Install uv if not already installed

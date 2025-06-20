@@ -1,9 +1,9 @@
 [project]
-name = "speak"
+name = "speaky"
 authors = [
     {name = "Bryce Drennan"},
 ]
-description = "CLI wrapper around Resemble AI's Chatterbox TTS"
+description = "Text to speech with voice cloning"
 readme = "README.md"
 requires-python = ">=3.12.8"
 dynamic = ["version"]
