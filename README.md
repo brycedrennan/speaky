@@ -13,15 +13,13 @@ Generate natural‑sounding speech from plain text—locally on your GPU/CPU usi
 * **Smart sentence chunking** (NLTK) to handle long passages gracefully
 * **Trailing‑silence trimming** so outputs end crisply
 * **Glitch / clipping detection** heuristic for cleaner audio
-* **verification via transcription** (Distil‑Whisper) to catch missing words
-* **Batch synthesis** with per‑file progress bars
+* **Verification via transcription** (Distil‑Whisper) to catch missing words
+
 
 
 ---
 
 ## 🛠 Installation
-
-### Stable release
 
 ```bash
 uv tool install speak
@@ -35,10 +33,10 @@ uv tool install speak
 
 | Task              | Command                                                         |
 | ----------------- | --------------------------------------------------------------- |
-| Say a sentence    | `speak synth --text "Hello, world!"`                            |
-| Batch from a file | `speak synth -f script.txt -o voiceovers/`                      |
-| Clone a voice     | `speak synth --text "How do I sound?" --voice my_prompt.wav`    |
-| Dial up the drama | `speak synth --text "This is **exciting**!" --exaggeration 1.2` |
+| Say a sentence    | `speak --text "Hello, world!"`                            |
+| Batch from a file | `speak -f script.txt -o voiceovers/`                      |
+| Clone a voice     | `speak --text "How do I sound?" --voice my_prompt.wav`    |
+| Dial up the drama | `speak --text "This is **exciting**!" --exaggeration 1.2` |
 
 All outputs are WAV files named after the text (or file stem) and saved to the current directory unless you pass `--output-dir`.
 
