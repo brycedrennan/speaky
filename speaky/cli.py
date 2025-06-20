@@ -34,7 +34,7 @@ def synthesize(
     ),
     # Output
     output_dir: Path = typer.Option(
-        Path("."),
+        Path("./outputs"),
         "--output-dir",
         "-o",
         help="Directory where MP3 files are saved (ignored when --remote is set).",
