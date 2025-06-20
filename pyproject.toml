@@ -38,8 +38,8 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/brycedrennan/speak"
-Source = "https://github.com/brycedrennan/speak"
+Documentation = "https://github.com/brycedrennan/speaky"
+Source = "https://github.com/brycedrennan/speaky"
 
 # ---------------------------------------------------------------------------
 # Build system
@@ -50,13 +50,13 @@ requires = ["setuptools>=76", "setuptools_scm[toml]>=8.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["speak"]
+packages = ["speaky"]
 
 [tool.setuptools_scm]
-write_to = "speak/_version.py"
+write_to = "speaky/_version.py"
 
 [project.scripts]
-speak = "speak.cli:main"
+speak = "speaky.cli:main"
 
 [tool.ruff]
 extend-exclude = []
