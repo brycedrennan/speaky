@@ -148,7 +148,7 @@ def glitchy_tail(
     tail_mask[tail_start_frame:] = True
 
     early_mask = ~tail_mask
-    if early_mask.any():
+    if early_mask.any():  # noqa
         baseline = float(np.median(rms_db_arr[early_mask]))
     else:  # Very short clip - baseline = overall median
         baseline = float(np.median(rms_db_arr))

@@ -72,7 +72,7 @@ def synthesize(
         show_default=True,
     ),
     max_chars: int = typer.Option(
-        600,
+        450,
         min=200,
         help="Maximum characters per chunk before the text is split automatically.",
         show_default=True,
@@ -82,12 +82,6 @@ def synthesize(
         False,
         "--save-chunks/--no-save-chunks",
         help="Write each generated chunk to a 'speak-chunks' folder alongside the final WAV. Useful for debugging.",
-    ),
-    # NEW: remote execution
-    remote: bool = typer.Option(
-        False,
-        "--remote/--local",
-        help="Run synthesis on a GPU-backed Modal worker.",
     ),
 ):
     """Entry-point for the *speak* executable."""
@@ -99,6 +93,7 @@ def synthesize(
     # Gather inputs
     # ---------------------------------------------------------------------
     entries: list[tuple[str, str]] = []  # (text, stem)
+    remote = False
     if text:
         entries.append((text, slugify(text)))
     for path in file or []:

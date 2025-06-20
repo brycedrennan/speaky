@@ -6,29 +6,22 @@ recognition (ASR) so that *speak.core* can focus solely on text-to-speech.
 
 from __future__ import annotations
 
+import difflib
+import logging
 import re
 import tempfile
 from functools import cache
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
-import logging
-import difflib
 
 import torch
 import torchaudio as ta
-from types import SimpleNamespace
 from transformers import (
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,
     pipeline,
 )  # type: ignore
-
-__all__ = [
-    "_chunk_passes_asr",  # Verification helper
-    "_lazy_asr_model",  # Cached model accessor
-    "_normalize_for_compare",  # Used internally + by tests
-    "transcribe",  # Public helper
-]
 
 # ---------------------------------------------------------------------------
 #   Normalisation helper (public)
@@ -194,11 +187,28 @@ def _chunk_passes_asr(
     asr_words = set(norm_asr.split())
 
     missing = [w for w in expected_words if w not in asr_words]
-    missing_ratio = len(missing) / len(expected_words)
 
-    passes = missing_ratio <= max_missing_ratio
+    missing_ratio = len(missing) / len(expected_words)
+    length_ratio = abs(1 - (len(norm_asr) / len(norm_expected)))
+
+    passes = length_ratio <= max_missing_ratio
 
     if not passes:
+        print(f"INPUT:\n{expected_text}")
+        print(f"TRANSCRIBED:\n{transcript}")
+        print(f"LENGTH RATIO: {length_ratio}")
+        print(f"MISSING RATIO: {missing_ratio}")
+        print("NORMALIZED DIFF:")
+        diff = "\n".join(
+            difflib.unified_diff(
+                norm_expected.split(),
+                norm_asr.split(),
+                fromfile="norm_expected",
+                tofile="norm_asr",
+                lineterm="",
+            )
+        )
+        print(diff)
         logger = logging.getLogger(__name__)
         diff = "\n".join(
             difflib.unified_diff(

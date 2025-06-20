@@ -153,7 +153,7 @@ def synthesize_one(
     max_trailing_silence: float = 0.7,
     verify_with_asr: bool = True,
     asr_model_size: str = "small",
-    max_missing_ratio: float = 0.10,
+    max_missing_ratio: float = 0.02,
 ) -> None:
     """Synthesize *text* and write a single WAV file to *output_path*.
 
@@ -188,8 +188,7 @@ def synthesize_one(
         # -----------------------------------------------------------------
         # Locate starting character index for this chunk (best-effort)
         # -----------------------------------------------------------------
-        # Print the chunk text before processing for easier debugging/inspection
-        print(f"Chunk {idx}/{len(chunks)}: {chunk}")
+        print(f"Chunk {idx}/{len(chunks)}")
 
         start_idx = text.find(chunk, search_pos)
         if start_idx == -1:
@@ -303,7 +302,7 @@ def batch_synthesize(
     max_trailing_silence: float = 0.7,
     verify_with_asr: bool = True,
     asr_model_size: str = "small",
-    max_missing_ratio: float = 0.10,
+    max_missing_ratio: float = 0.02,
 ) -> list[Path]:
     """High-level helper to synthesise multiple entries."""
     output_paths: list[Path] = []
