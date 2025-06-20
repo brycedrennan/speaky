@@ -24,16 +24,8 @@ Generate natural‑sounding speech from plain text—locally on your GPU/CPU usi
 ### Stable release
 
 ```bash
-pip install speak
+uv tool install speak
 ```
-
-### Latest from source
-
-```bash
-pip install git+https://github.com/brycedrennan/speak.git
-```
-
-> **Requirements:** Python ≥ 3.12 and a matching build of **PyTorch 2.2+** (plus `torchaudio`). If you plan on GPU synthesis, install the CUDA or MPS wheels as usual.
 
 ---
 
@@ -52,7 +44,6 @@ All outputs are WAV files named after the text (or file stem) and saved to the c
 
 ### Common flags
 
-* `--device` `cuda|mps|cpu`  • *override auto‑detect*
 * `--cfg-weight FLOAT`  • classifier‑free guidance mix (0‑1)
 * `--max-chars INT`  • soft limit per chunk (default 800)
 * `--save-chunks`  • keep intermediate WAVs for debugging
