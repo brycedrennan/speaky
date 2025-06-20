@@ -52,6 +52,10 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["speaky"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"speaky" = ["voices/*.mp3"]
 
 [tool.setuptools_scm]
 write_to = "speaky/_version.py"
