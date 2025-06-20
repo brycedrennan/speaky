@@ -46,6 +46,7 @@ jobs:
         enable-cache: false
     - run: echo "UV_PYTHON=$pythonLocation" >> $GITHUB_ENV
     - run: uv sync --frozen --all-extras
+    - run: uv pip install ty
     - name: Typecheck
       run: uv run --frozen -- ty check
   test:
