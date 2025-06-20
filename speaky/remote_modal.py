@@ -5,7 +5,7 @@ we copy the `uv` binary, then run `uv sync` against **pyproject.toml**/`uv.lock`
 instead of relying on the (now-discouraged) ``Image.pip_install`` helper.
 
 The function ``tts_remote`` is invoked by *speak.cli* when users call
-`speak synth --remote`, and returns a list ``[(filename, base64_wav_bytes), …]``.
+`speak synth --remote`, and returns a list ``[(filename, base64_mp3_bytes), …]``.
 """
 
 from __future__ import annotations
@@ -48,6 +48,7 @@ _ALWAYS_IGNORE: list[str] = [
 
 # We skip resource-heavy binary file types when sending code to Modal
 _EXCLUDE_EXTS: tuple[str, ...] = (
+    ".mp3",
     ".wav",
     ".png",
     ".jpg",
@@ -185,7 +186,7 @@ def tts_remote(
             prompt_path = tmpdir_path / "prompt.wav"
             prompt_path.write_bytes(audio_prompt_bytes)
 
-        # Directory for the wav outputs
+        # Directory for the mp3 outputs
         out_dir = tmpdir_path / "out"
         out_dir.mkdir(exist_ok=True)
 
@@ -208,9 +209,9 @@ def tts_remote(
         # --------------------------------------------------------------------------------
         results: list[tuple[str, str]] = []
         for _, stem in entries:
-            fname = f"{stem}.wav"
-            wav_bytes = (out_dir / fname).read_bytes()
-            b64_audio = base64.b64encode(wav_bytes).decode()
+            fname = f"{stem}.mp3"
+            audio_bytes = (out_dir / fname).read_bytes()
+            b64_audio = base64.b64encode(audio_bytes).decode()
             results.append((fname, b64_audio))
 
         return results

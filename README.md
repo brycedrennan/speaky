@@ -38,7 +38,7 @@ uv tool install speaky
 | Clone a voice     | `speak --text "How do I sound?" --voice my_prompt.wav`    |
 | Dial up the drama | `speak --text "This is **exciting**!" --exaggeration 1.2` |
 
-All outputs are WAV files named after the text (or file stem) and saved to the current directory unless you pass `--output-dir`.
+All outputs are MP3 files named after the text (or file stem) and saved to the current directory unless you pass `--output-dir`.
 
 ### Common flags
 
