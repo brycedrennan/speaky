@@ -6,13 +6,17 @@ from __future__ import annotations
 import base64
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import modal
 import typer
-from tqdm.auto import tqdm
 
-from speaky import remote_modal
-from speaky.core import batch_synthesize, slugify
+if TYPE_CHECKING:  # pragma: no cover - hints only
+    from tqdm.auto import tqdm as _tqdm  # noqa: F401
+
+    from speaky.core import (
+        batch_synthesize as _batch_synthesize,  # noqa: F401
+        slugify as _slugify,  # noqa: F401
+    )
 
 app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
 
@@ -90,6 +94,10 @@ def synthesize(
     ),
 ):
     """Entry-point for the *speak* executable."""
+    from tqdm.auto import tqdm
+
+    from speaky.core import batch_synthesize, slugify
+
     if not text and text_args:
         text = " ".join(text_args)
 
@@ -126,6 +134,10 @@ def synthesize(
         # --------------------------------------------------------------
         # Remote (Modal) execution
         # --------------------------------------------------------------
+
+        import modal
+
+        from speaky import remote_modal
 
         prompt_bytes = audio_prompt_path.read_bytes() if audio_prompt_path else None
 
