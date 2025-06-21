@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import base64
 import sys
 from pathlib import Path
 
@@ -33,6 +32,12 @@ def synthesize(
         help="Path to a UTF-8 text file. Can be given multiple times.",
     ),
     # Output
+    filename: str | None = typer.Option(
+        None,
+        "--filename",
+        "-n",
+        help="Output filename without extension (requires a single input).",
+    ),
     output_dir: Path = typer.Option(
         Path("./outputs"),
         "--output-dir",
@@ -138,6 +143,12 @@ def synthesize(
             typer.secho(f"Warning: {path} is empty — skipping.", fg=typer.colors.YELLOW, err=True)
             continue
         entries.append((content, path.stem))
+
+    if filename:
+        if len(entries) != 1:
+            typer.secho("--filename requires exactly one input", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1)
+        entries[0] = (entries[0][0], filename)
 
     if not entries:
         typer.secho("No valid input found.", fg=typer.colors.RED, err=True)
