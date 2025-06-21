@@ -48,6 +48,10 @@ install-uv:  # Install uv if not already installed
 		echo -e "\033[0;32m ✔️  uv installed \033[0m"; \
 	fi
 
+strip-voice-metadata: ## Remove metadata from built-in voice MP3s.
+	@for f in speaky/voices/*.mp3; do \
+		ffmpeg -y -i "$$f" -map_metadata -1 -c copy "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+	done
 help: ## Show this help message.
 	@## https://gist.github.com/prwhite/8168133#gistcomment-1716694
 	@echo -e "$$(grep -hE '^\S+:.*##' $(MAKEFILE_LIST) | sed -e 's/:.*##\s*/:/' -e 's/^\(.\+\):\(.*\)/\\x1b[36m\1\\x1b[m:\2/' | column -c2 -t -s :)" | sort
