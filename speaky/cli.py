@@ -37,7 +37,7 @@ def synthesize(
         Path("./outputs"),
         "--output-dir",
         "-o",
-        help="Directory where MP3 files are saved (ignored when --remote is set).",
+        help="Directory where MP3 files are saved.",
         show_default=True,
     ),
     overwrite: bool = typer.Option(
@@ -126,7 +126,6 @@ def synthesize(
     # Gather inputs
     # ---------------------------------------------------------------------
     entries: list[tuple[str, str]] = []  # (text, stem)
-    remote = False
     if text:
         entries.append((text, core.slugify(text)))
     for path in file or []:
@@ -143,39 +142,6 @@ def synthesize(
     if not entries:
         typer.secho("No valid input found.", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
-
-    # ---------------------------------------------------------------------
-    # Choose execution mode
-    # ---------------------------------------------------------------------
-    if remote:
-        # --------------------------------------------------------------
-        # Remote (Modal) execution
-        # --------------------------------------------------------------
-
-        import modal
-
-        from speaky import remote_modal
-
-        prompt_bytes = audio_prompt_path.read_bytes() if audio_prompt_path else None
-
-        typer.secho("Submitting job to Modal…", fg=typer.colors.BLUE)
-        with modal.enable_output(), remote_modal.app.run():  # Ephemeral app
-            results = remote_modal.tts_remote.remote(
-                entries=entries,
-                device=device,
-                audio_prompt_bytes=prompt_bytes,
-                exaggeration=exaggeration,
-                cfg_weight=cfg_weight,
-                max_chars=max_chars,
-            )
-
-        # Write returned audio to local disk
-        out_dir = output_dir or Path(".")
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for fname, b64_audio in results:
-            (out_dir / fname).write_bytes(base64.b64decode(b64_audio))
-            typer.secho(f"Saved {fname}", fg=typer.colors.GREEN)
-        return
 
     # --------------------------------------------------------------
     # Local execution (default)
