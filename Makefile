@@ -50,8 +50,45 @@ install-uv:  # Install uv if not already installed
 
 strip-voice-metadata: ## Remove metadata from built-in voice MP3s.
 	@for f in speaky/voices/*.mp3; do \
-		ffmpeg -y -i "$$f" -map_metadata -1 -c copy "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+		ffmpeg -y -i "$$f" -map_metadata -1 -c copy -f mp3 "$$f.tmp" && mv "$$f.tmp" "$$f"; \
 	done
+
+.PHONY: sync
+sync:
+	@# ── guard required env-vars ──────────────────────────────────────────────
+	@: $${LOCAL_PROJ_ROOT?"LOCAL_PROJ_ROOT is not set"}
+	@: $${REMOTE_PROJ_ROOT?"REMOTE_PROJ_ROOT is not set"}
+
+	@# ── ensure we're somewhere underneath $$LOCAL_PROJ_ROOT ──────────────────
+	@case "$$PWD/" in "$${LOCAL_PROJ_ROOT}"*) ;; *) \
+		echo "Error: run make inside $${LOCAL_PROJ_ROOT}  (current $$PWD)"; \
+		exit 1 ;; \
+	esac
+
+	@# ── derive pieces we need ────────────────────────────────────────────────
+	@local="$$PWD"; \
+	rel="$${local#$${LOCAL_PROJ_ROOT}}"; \
+	remote_prefix="$${REMOTE_PROJ_ROOT#ssh://}"; \
+	host="$${remote_prefix%%/*}"; \
+	base="$${remote_prefix#*/}"; \
+	remote_dir="$${base%/}/$$rel"; \
+	echo "Checking remote base: $$host:$$base"; \
+	ssh "$$host" "[ -d \"$$base\" ]" || { \
+		echo \"Error: remote base '$$base' does not exist on $$host\"; exit 1; }; \
+	echo "Ensuring remote path exists: $$host:$$remote_dir"; \
+	ssh "$$host" "mkdir -p \"$$remote_dir\"" || { \
+		echo 'mkdir -p on remote failed'; exit 1; }; \
+	remote_spec="$${REMOTE_PROJ_ROOT}$$rel"; \
+	echo "Syncing  $$local  ↔  $$remote_spec"; \
+	unison "$$local" "$$remote_spec" -auto -batch -perms 0 -prefer newer -repeat watch \
+		-ignore 'Name .venv' \
+		-ignore 'Name .ruff_cache' \
+		-ignore 'Name .mypy_cache' \
+		-ignore 'Name .pytest_cache' \
+		-ignore 'Name *.egg-info' \
+		-ignore 'Name *.pyc' \
+		-ignore 'Name .DS_Store'
+
 help: ## Show this help message.
 	@## https://gist.github.com/prwhite/8168133#gistcomment-1716694
 	@echo -e "$$(grep -hE '^\S+:.*##' $(MAKEFILE_LIST) | sed -e 's/:.*##\s*/:/' -e 's/^\(.\+\):\(.*\)/\\x1b[36m\1\\x1b[m:\2/' | column -c2 -t -s :)" | sort
