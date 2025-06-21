@@ -149,6 +149,9 @@ def synthesize(
             typer.secho("--filename requires exactly one input", fg=typer.colors.RED, err=True)
             raise typer.Exit(code=1)
         entries[0] = (entries[0][0], filename)
+    elif audio_prompt_path and not voice_all:
+        tag = core.slugify(audio_prompt_path.stem)
+        entries = [(t, f"{s}-{tag}") for t, s in entries]
 
     if not entries:
         typer.secho("No valid input found.", fg=typer.colors.RED, err=True)

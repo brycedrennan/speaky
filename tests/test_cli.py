@@ -26,6 +26,7 @@ def test_builtin_voice(monkeypatch, tmp_path):
 
     def fake_batch(entries, *, output_dir, audio_prompt_path=None, **kwargs):
         called["audio_prompt_path"] = audio_prompt_path
+        called["entries"] = entries
         return [tmp_path / "x.wav"]
 
     monkeypatch.setattr("speaky.core.batch_synthesize", fake_batch)
@@ -36,6 +37,7 @@ def test_builtin_voice(monkeypatch, tmp_path):
     from speaky.voices import get_voice_path
 
     assert called["audio_prompt_path"] == get_voice_path("vader")
+    assert called["entries"] == [("hello", "hello-vader")]
 
 
 def test_voice_all(monkeypatch, tmp_path):
@@ -73,3 +75,26 @@ def test_filename_option(monkeypatch, tmp_path):
 
     assert result.exit_code == 0
     assert called["entries"] == [("hello", "myfile")]
+
+
+def test_filename_with_voice(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_batch(entries, *, output_dir, audio_prompt_path=None, **kwargs):
+        called["entries"] = entries
+        called["audio_prompt_path"] = audio_prompt_path
+        return [tmp_path / "x.wav"]
+
+    monkeypatch.setattr(core, "batch_synthesize", fake_batch)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli.app,
+        ["hello", "-v", "vader", "--filename", "out"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    from speaky.voices import get_voice_path
+
+    assert called["audio_prompt_path"] == get_voice_path("vader")
+    assert called["entries"] == [("hello", "out")]
