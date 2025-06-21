@@ -3,9 +3,11 @@
 **Text‑to‑Speech with Voice Cloning made easy with Chatterbox TTS**
 Generate natural‑sounding speech from plain text—locally on your GPU/CPU using a single, ergonomic command‑line tool.
 
-<video src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp3" controls width="300"></video>
+<video src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp4" controls width="300"></video>
 <figure>
   <figcaption><strong>Attenborough</strong></figcaption>
+
+  <video src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp4" controls width="300"></video>
   <audio controls src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp3"></audio>
 </figure>
 

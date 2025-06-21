@@ -53,7 +53,18 @@ strip-voice-metadata: ## Remove metadata from built-in voice MP3s.
 		ffmpeg -y -i "$$f" -map_metadata -1 -c copy -f mp3 "$$f.tmp" && mv "$$f.tmp" "$$f"; \
 	done
 
-.PHONY: sync
+DOC_MP3_FILES := $(wildcard docs/*.mp3)
+DOC_MP4_FILES := $(DOC_MP3_FILES:.mp3=.mp4)
+
+docs/%.mp4: docs/%.mp3
+	@echo "→ Converting $< → $@"
+	ffmpeg -y -loglevel error -f lavfi -i color=c=black:s=2x2 \
+		-i $< -c:v libx264 -tune stillimage \
+		-c:a aac -shortest $@
+
+docs-mp4: $(DOC_MP4_FILES) ## Convert all MP3 files in docs/ to MP4 videos
+
+.PHONY: sync docs-mp4
 sync:
 	@# ── guard required env-vars ──────────────────────────────────────────────
 	@: $${LOCAL_PROJ_ROOT?"LOCAL_PROJ_ROOT is not set"}
