@@ -1,16 +1,48 @@
 # Speaky
 
-**Text‑to‑Speech made easy with Chatterbox TTS**
-Generate natural‑sounding speech from plain text—locally on your GPU/CPU using a single, ergonomic command‑line tool **and** a clean Python API.
+**Text‑to‑Speech with Voice Cloning made easy with Chatterbox TTS**
+Generate natural‑sounding speech from plain text—locally on your GPU/CPU using a single, ergonomic command‑line tool.
 
----
+<figure>
+  <figcaption><strong>Attenborough</strong></figcaption>
+  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp3"></audio>
+</figure>
+
+<figure>
+  <figcaption><strong>Vader</strong></figcaption>
+  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--vader.mp3"></audio>
+</figure>
+
+<figure>
+  <figcaption><strong>Trump</strong></figcaption>
+  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--trump.mp3"></audio>
+</figure>
+
+<figure>
+  <figcaption><strong>Her (Scarlett)</strong></figcaption>
+  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--her.mp3"></audio>
+</figure>
+
+<figure>
+  <figcaption><strong>Kamala</strong></figcaption>
+  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--kamala.mp3"></audio>
+</figure>
+
+<figure>
+  <figcaption><strong>Siri</strong></figcaption>
+  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--siri.mp3"></audio>
+</figure>
+
+
+
+
 
 ## Features
 
 * **Voice cloning** from a short audio prompt (optional)
 * **Built‑in voices** accessible via `-v NAME` (or `-v ALL` for every voice)
 * **Emotion control** via exaggeration & classifier‑free guidance
-* **Device auto‑detection** — Apple Silicon (*mps*), CUDA GPUs, or CPU
+* **Device auto‑detection** — Apple Silicon (*mps*), CUDA GPUs, or CPU
 * **Smart sentence chunking** (NLTK) to handle long passages gracefully
 * **Trailing‑silence trimming** so outputs end crisply
 * **Glitch / clipping detection** heuristic for cleaner audio
@@ -45,10 +77,10 @@ All outputs are MP3 files named after the text (or file stem) and saved to the c
 
 ### Common flags
 
-* `--cfg-weight FLOAT`  • classifier‑free guidance mix (0‑1)
-* `--max-chars INT`  • soft limit per chunk (450)
-* `--save-chunks`  • keep intermediate WAVs for debugging
-* `--overwrite`  • replace existing files
+* `--cfg-weight FLOAT`  • classifier‑free guidance mix (0‑1)
+* `--max-chars INT`  • soft limit per chunk (450)
+* `--save-chunks`  • keep intermediate WAVs for debugging
+* `--overwrite`  • replace existing files
 
 Run `speak --help` for the full list.
 
@@ -66,7 +98,11 @@ batch_synthesize(
 )
 ```
 
-The helper wraps all the goodies—chunking, glitch detection, ASR verification, etc.—while caching the heavy TTS model for speed.
+The helper wraps all the goodies—chunking, glitch detection, transcription verification, etc.—while caching the heavy TTS model for speed.
+
+## Credit
+
+This project is built on top of [chatterbox open-source TTS](https://github.com/resemble-ai/chatterbox).
 
 ## Development
 
@@ -93,10 +129,11 @@ The helper wraps all the goodies—chunking, glitch detection, ASR verification,
 
 #### Exceptions
 - Catch only specific exceptions—never blanket `except:` blocks.
-- Don’t raise bare `Exception`.
+- Don't raise bare `Exception`.
 
 #### Python
-- Manage env/deps with **uv** (`uv add|remove`, `uv run -- …`).
+- Manage env/deps with **uv** (`uv add|remove`, `uv run -- ...`).
 - No logging config or side-effects at import time.
 - Keep interfaces (CLI, web, etc.) thin; put logic elsewhere.
 - Use `typer` for CLI interfaces, `fastapi` for web interfaces, and `pydantic` for data models.
+
