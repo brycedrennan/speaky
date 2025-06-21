@@ -8,7 +8,7 @@ from pathlib import Path
 
 import typer
 
-app = typer.Typer(add_completion=False, help="Speak — TTS")
+app = typer.Typer(add_completion=False, help="Speak — TTS", pretty_exceptions_enable=False)
 
 
 @app.command(name=None)
