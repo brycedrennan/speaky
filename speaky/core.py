@@ -6,16 +6,16 @@ from __future__ import annotations
 import logging
 import re
 from functools import cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import nltk
 import torch
 import torchaudio as ta
-from chatterbox.tts import ChatterboxTTS
 
 # Local package helpers
 from speaky.glitch_detection import glitchy_tail
 from speaky.transcription import _chunk_passes_asr
+from speaky.tts import ParallelChatterboxTTS, auto_batch_size
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -133,9 +133,9 @@ def chunk_text(text: str, max_chars: int) -> list[str]:
 
 
 @cache
-def _lazy_model(device: str) -> ChatterboxTTS:  # noqa: WPS430
+def _lazy_model(device: str) -> ParallelChatterboxTTS:  # noqa: WPS430
     """Cache the TTS model so we only pay start-up cost once."""
-    return ChatterboxTTS.from_pretrained(device=device)
+    return cast("ParallelChatterboxTTS", ParallelChatterboxTTS.from_pretrained(device=device))
 
 
 def synthesize_one(
@@ -180,9 +180,11 @@ def synthesize_one(
 
     model = _lazy_model(device)
     chunks = chunk_text(text, max_chars=max_chars)
+    batch_size = auto_batch_size(device)
     wavs: list[torch.Tensor] = []
 
     # Track character offsets so we can embed them in filenames
+    start_positions: list[int] = []
     search_pos = 0
     if save_chunks:
         chunk_dir = (output_path.parent / "speak-chunks").resolve()
@@ -194,97 +196,99 @@ def synthesize_one(
 
     logger = logging.getLogger(__name__)
 
-    for idx, chunk in enumerate(chunks, start=1):
-        # -----------------------------------------------------------------
-        # Locate starting character index for this chunk (best-effort)
-        # -----------------------------------------------------------------
-        print(f"Chunk {idx}/{len(chunks)}")
-
+    for chunk in chunks:
         start_idx = text.find(chunk, search_pos)
         if start_idx == -1:
-            start_idx = search_pos  # Fallback
+            start_idx = search_pos
+        start_positions.append(start_idx)
         search_pos = start_idx + len(chunk)
 
-        # -----------------------------------------------------------------
-        # Generate audio, retry if duration is suspiciously short OR glitchy
-        # -----------------------------------------------------------------
-        attempt = 0
-        while True:
-            generated = model.generate(
-                chunk,
-                audio_prompt_path=str(audio_prompt_path) if idx == 1 and audio_prompt_path else None,
-                exaggeration=exaggeration,
-                cfg_weight=cfg_weight,
-            )
-            # NEW: glitch detection - run BEFORE silence trimming
-            raw_np = generated.detach().cpu().numpy().reshape(-1)
-            is_glitchy = glitchy_tail((raw_np, model.sr))
-            is_glitchy = False
+    if audio_prompt_path:
+        model.prepare_conditionals(str(audio_prompt_path), exaggeration=exaggeration)
 
-            # Now trim excessive trailing silence for final acceptance
-            wav = trim_trailing_silence(generated, model.sr, max_silence_sec=max_trailing_silence)
+    for bstart in range(0, len(chunks), batch_size):
+        batch = chunks[bstart : bstart + batch_size]
+        batch_wavs = model.generate_batch(
+            batch,
+            exaggeration=exaggeration,
+            cfg_weight=cfg_weight,
+        )
+        for j, (chunk, start_idx, generated) in enumerate(
+            zip(batch, start_positions[bstart : bstart + batch_size], batch_wavs),
+            start=bstart + 1,
+        ):
+            idx = j
+            attempt = 0
+            while True:
+                # NEW: glitch detection - run BEFORE silence trimming
+                raw_np = generated.detach().cpu().numpy().reshape(-1)
+                is_glitchy = glitchy_tail((raw_np, model.sr))
+                is_glitchy = False
 
-            duration = wav.shape[-1] / model.sr
-            # Dynamic minimum based on text length (word count)
-            words = len(chunk.split()) or 1
-            dynamic_min = max(min_chunk_seconds, words * min_sec_per_word)
+                # Now trim excessive trailing silence for final acceptance
+                wav = trim_trailing_silence(generated, model.sr, max_silence_sec=max_trailing_silence)
 
-            # Log warnings if the generated audio is considered bad and will be retried
-            if duration < dynamic_min:
-                logger.warning(
-                    "Chunk %s attempt %s flagged as too short (%.2fs < %.2fs). Retrying…",
-                    idx,
-                    attempt,
-                    duration,
-                    dynamic_min,
-                )
+                duration = wav.shape[-1] / model.sr
+                words = len(chunk.split()) or 1
+                dynamic_min = max(min_chunk_seconds, words * min_sec_per_word)
 
-            if is_glitchy:
-                logger.warning(
-                    "Chunk %s attempt %s appears glitchy/clipped according to heuristic. Retrying…",
-                    idx,
-                    attempt,
-                )
-
-            # -----------------------------------------------------------------
-            # Optional ASR verification (faster-whisper)
-            # -----------------------------------------------------------------
-            asr_ok = True
-            if verify_with_asr:
-                try:
-                    asr_ok = _chunk_passes_asr(
-                        wav,
-                        model.sr,
-                        chunk,
-                        device,
-                        max_missing_ratio=max_missing_ratio,
-                        model_size=asr_model_size,
-                    )
-                except Exception as exc:  # noqa: BLE001 - any ASR failure triggers retry
+                if duration < dynamic_min:
                     logger.warning(
-                        "Chunk %s attempt %s failed ASR verification due to error: %s. Retrying…",
+                        "Chunk %s attempt %s flagged as too short (%.2fs < %.2fs). Retrying…",
                         idx,
                         attempt,
-                        exc,
+                        duration,
+                        dynamic_min,
                     )
-                    asr_ok = False
 
-            if verify_with_asr and not asr_ok:
-                logger.warning(
-                    "Chunk %s attempt %s failed ASR word match threshold. Retrying…",
-                    idx,
-                    attempt,
+                if is_glitchy:
+                    logger.warning(
+                        "Chunk %s attempt %s appears glitchy/clipped according to heuristic. Retrying…",
+                        idx,
+                        attempt,
+                    )
+
+                asr_ok = True
+                if verify_with_asr:
+                    try:
+                        asr_ok = _chunk_passes_asr(
+                            wav,
+                            model.sr,
+                            chunk,
+                            device,
+                            max_missing_ratio=max_missing_ratio,
+                            model_size=asr_model_size,
+                        )
+                    except Exception as exc:  # noqa: BLE001 - any ASR failure triggers retry
+                        logger.warning(
+                            "Chunk %s attempt %s failed ASR verification due to error: %s. Retrying…",
+                            idx,
+                            attempt,
+                            exc,
+                        )
+                        asr_ok = False
+
+                if verify_with_asr and not asr_ok:
+                    logger.warning(
+                        "Chunk %s attempt %s failed ASR word match threshold. Retrying…",
+                        idx,
+                        attempt,
+                    )
+
+                meet_quality = duration >= dynamic_min and not is_glitchy and (not verify_with_asr or asr_ok)
+
+                if meet_quality or attempt >= max_retries:
+                    break
+                if save_rejects:
+                    chunk_slug = slugify(chunk, max_len=30)
+                    rname = f"{audio_slug}_{idx}_{start_idx}_{chunk_slug}_attempt{attempt}.mp3"
+                    ta.save(str(reject_dir / rname), wav, model.sr)
+                attempt += 1
+                generated = model.generate(
+                    chunk,
+                    exaggeration=exaggeration,
+                    cfg_weight=cfg_weight,
                 )
-
-            meet_quality = duration >= dynamic_min and not is_glitchy and (not verify_with_asr or asr_ok)
-
-            if meet_quality or attempt >= max_retries:
-                break
-            if save_rejects:
-                chunk_slug = slugify(chunk, max_len=30)
-                rname = f"{audio_slug}_{idx}_{start_idx}_{chunk_slug}_attempt{attempt}.mp3"
-                ta.save(str(reject_dir / rname), wav, model.sr)
-            attempt += 1
 
         # -----------------------------------------------------------------
         # Optionally write chunk WAV to disk for inspection/debugging
