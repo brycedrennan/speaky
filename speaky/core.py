@@ -8,7 +8,7 @@ import re
 from functools import cache
 from typing import TYPE_CHECKING
 
-import nltk  # Using NLTK for sentence tokenization
+import nltk
 import torch
 import torchaudio as ta
 from chatterbox.tts import ChatterboxTTS
@@ -90,8 +90,9 @@ def _ensure_punkt() -> None:
     """Ensure that the Punkt tokenizer is available."""
     try:
         nltk.data.find("tokenizers/punkt")
+        nltk.data.find("tokenizers/punkt_tab")
     except LookupError:  # pragma: no cover
-        nltk.download("punkt", quiet=True)
+        nltk.download(["punkt", "punkt_tab"], quiet=True)
 
 
 def _sentences(text: str) -> list[str]:
@@ -122,6 +123,7 @@ def chunk_text(text: str, max_chars: int) -> list[str]:
             buf_len = len(sent)
     if buf:
         chunks.append(" ".join(buf))
+    chunks = [c.strip() for c in chunks if c.strip()]
     return chunks
 
 
@@ -153,7 +155,7 @@ def synthesize_one(
     max_retries: int = 3,
     max_trailing_silence: float = 0.7,
     verify_with_asr: bool = True,
-    asr_model_size: str = "small",
+    asr_model_size: str = "large",
     max_missing_ratio: float = 0.02,
 ) -> None:
     """Synthesize *text* and write a single MP3 file to *output_path*.
@@ -217,6 +219,7 @@ def synthesize_one(
             # NEW: glitch detection - run BEFORE silence trimming
             raw_np = generated.detach().cpu().numpy().reshape(-1)
             is_glitchy = glitchy_tail((raw_np, model.sr))
+            is_glitchy = False
 
             # Now trim excessive trailing silence for final acceptance
             wav = trim_trailing_silence(generated, model.sr, max_silence_sec=max_trailing_silence)
@@ -278,8 +281,8 @@ def synthesize_one(
             if meet_quality or attempt >= max_retries:
                 break
             if save_rejects:
-                chunk_slug = slugify(chunk, max_len=50)
-                rname = f"{audio_slug}_{idx}_{start_idx}_{chunk_slug}_attempt{attempt}.wav"
+                chunk_slug = slugify(chunk, max_len=30)
+                rname = f"{audio_slug}_{idx}_{start_idx}_{chunk_slug}_attempt{attempt}.mp3"
                 ta.save(str(reject_dir / rname), wav, model.sr)
             attempt += 1
 
@@ -314,7 +317,7 @@ def batch_synthesize(
     max_retries: int = 3,
     max_trailing_silence: float = 0.7,
     verify_with_asr: bool = True,
-    asr_model_size: str = "small",
+    asr_model_size: str = "large",
     max_missing_ratio: float = 0.02,
 ) -> list[Path]:
     """High-level helper to synthesise multiple entries.

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import typer
 
-app = typer.Typer(add_completion=False, help="Speak — TTS made easy with Chatterbox")
+app = typer.Typer(add_completion=False, help="Speak — TTS")
 
 
 @app.command(name=None)

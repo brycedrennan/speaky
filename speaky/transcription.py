@@ -65,7 +65,7 @@ class _DistilWhisperASR:  # noqa: WPS110
     # are currently ignored because the underlying pipeline already chooses
     # sensible defaults for fast inference.
     def transcribe(self, audio_path: str, *_, **__) -> tuple[list[SimpleNamespace], dict]:  # noqa: D401, WPS110
-        result = self._pipe(audio_path)
+        result = self._pipe(audio_path, return_timestamps=True)
         text = result["text"].strip()
         segment = SimpleNamespace(text=text)
         # Mimic faster-whisper return signature → (segments, info)
@@ -89,7 +89,7 @@ def _model_id_for_size(model_size: str) -> str:  # noqa: WPS110
 
 
 @cache
-def _lazy_asr_model(device: str, model_size: str = "small") -> _DistilWhisperASR:  # noqa: WPS110
+def _lazy_asr_model(device: str, model_size: str = "large") -> _DistilWhisperASR:  # noqa: WPS110
     """Return (and cache) a Distil-Whisper ASR wrapper suited to *device*."""
 
     torch_dtype = torch.float16 if device in {"cuda", "mps"} or device.startswith("cuda") else torch.float32
@@ -138,7 +138,7 @@ def transcribe(
     audio_path: str | Path,
     *,
     device: str | None = None,
-    model_size: str = "small",
+    model_size: str = "large",
     beam_size: int = 5,
     **whisper_kwargs: Any,
 ) -> tuple[list[Any], Any]:
@@ -164,7 +164,7 @@ def _chunk_passes_asr(
     device: str,
     *,
     max_missing_ratio: float,
-    model_size: str = "small",
+    model_size: str = "large",
 ) -> bool:
     """Return *True* iff ASR contains *most* words from *expected_text*."""
 
