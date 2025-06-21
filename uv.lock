@@ -848,29 +848,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
 ]
 
-[[package]]
-name = "modal"
-version = "1.0.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "certifi" },
-    { name = "click" },
-    { name = "grpclib" },
-    { name = "protobuf" },
-    { name = "rich" },
-    { name = "synchronicity" },
-    { name = "toml" },
-    { name = "typer" },
-    { name = "types-certifi" },
-    { name = "types-toml" },
-    { name = "typing-extensions" },
-    { name = "watchfiles" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/98/66/4967c5de24416e758302c540d54d3e23d9d43ddc1ca5aa93303fb631ad43/modal-1.0.4.tar.gz", hash = "sha256:09a575ff5fcae1e690b10187bea6da7ff01430c38ec1785090bf7a7ccee7f408", size = 511755, upload-time = "2025-06-13T14:47:00.749Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7a/c3/4d9fbb14285698b7ae9f64423048ca9d28f5eb08b99f768b978f9118f780/modal-1.0.4-py3-none-any.whl", hash = "sha256:6c0d96bb49b09fa47e407a13e49545e32fe0803803b4330fbeb38de5e71209cc", size = 579637, upload-time = "2025-06-13T14:46:58.712Z" },
-]
 
 [[package]]
 name = "more-itertools"
@@ -1887,7 +1864,6 @@ source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
     { name = "chatterbox-tts" },
-    { name = "modal" },
     { name = "nltk" },
     { name = "numpy" },
     { name = "pathspec" },
@@ -1916,8 +1892,6 @@ dev = [
 requires-dist = [
     { name = "accelerate", specifier = ">=0.24" },
     { name = "chatterbox-tts", specifier = ">=0.1.0" },
-    { name = "modal", specifier = ">=1.0.4" },
-    { name = "nltk", specifier = ">=3.8" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "pathspec" },
     { name = "scipy", specifier = ">=1.11" },
