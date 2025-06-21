@@ -3,6 +3,19 @@ import torch.nn.functional as F
 from chatterbox.tts import ChatterboxTTS, T3Cond, drop_invalid_tokens, punc_norm
 
 
+def auto_batch_size(device: str) -> int:
+    """Return a best-guess batch size for ``device``."""
+    if device.startswith("cuda") and torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(device)
+        gb = props.total_memory / (1024**3)
+        if gb >= 20:
+            return 8
+        if gb >= 10:
+            return 4
+        return 2
+    return 1
+
+
 class ParallelChatterboxTTS(ChatterboxTTS):
     """Extend :class:`ChatterboxTTS` with a vectorised `generate_batch`."""
 
