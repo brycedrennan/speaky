@@ -90,11 +90,12 @@ def synthesize(
     ),
 ):
     """Entry-point for the *speak* executable."""
-    from speaky import _suppress_warnings  # noqa: F401 - side effects only
-    
     from tqdm.auto import tqdm
 
-    from speaky import core
+    from speaky import (
+        _suppress_warnings,  # noqa: F401 - side effects only
+        core,
+    )
     from speaky.voices import available_voices, get_voice_path
 
     if not text and text_args:
