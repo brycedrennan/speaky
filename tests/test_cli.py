@@ -58,3 +58,18 @@ def test_voice_all(monkeypatch, tmp_path):
     for (entries, path), voice in zip(calls, voices):
         assert entries == [("hello", f"hello-{voice}")]
         assert path == get_voice_path(voice)
+
+
+def test_filename_option(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_batch(entries, *, output_dir, **kwargs):
+        called["entries"] = entries
+        return [tmp_path / "x.wav"]
+
+    monkeypatch.setattr(core, "batch_synthesize", fake_batch)
+    runner = CliRunner()
+    result = runner.invoke(cli.app, ["hello", "--filename", "myfile"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert called["entries"] == [("hello", "myfile")]
