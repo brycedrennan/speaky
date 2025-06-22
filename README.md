@@ -1,44 +1,8 @@
 # Speaky
 
 **Text‑to‑Speech with Voice Cloning made easy with Chatterbox TTS**
+
 Generate natural‑sounding speech from plain text—locally on your GPU/CPU using a single, ergonomic command‑line tool.
-
-<video src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp4" controls width="300"></video>
-<figure>
-  <figcaption><strong>Attenborough</strong></figcaption>
-
-  <video src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp4" controls width="300"></video>
-  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--attenborough.mp3"></audio>
-</figure>
-
-<figure>
-  <figcaption><strong>Vader</strong></figcaption>
-  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--vader.mp3"></audio>
-</figure>
-
-<figure>
-  <figcaption><strong>Trump</strong></figcaption>
-  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--trump.mp3"></audio>
-</figure>
-
-<figure>
-  <figcaption><strong>Her (Scarlett)</strong></figcaption>
-  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--her.mp3"></audio>
-</figure>
-
-<figure>
-  <figcaption><strong>Kamala</strong></figcaption>
-  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--kamala.mp3"></audio>
-</figure>
-
-<figure>
-  <figcaption><strong>Siri</strong></figcaption>
-  <audio controls src="docs/we-hold-these-truths-to-be-self-evident--siri.mp3"></audio>
-</figure>
-
-
-
-
 
 ## Features
 
@@ -51,43 +15,20 @@ Generate natural‑sounding speech from plain text—locally on your GPU/CPU usi
 * **Glitch / clipping detection** heuristic for cleaner audio
 * **Verification via transcription** (Distil‑Whisper) to catch missing words
 
-
-
----
-
-## Quick Start
-
+## 🚀 Quickstart (CLI)
+Run without installation:
 ```bash
-uv tool install speaky
+uvx speak "Do or do not. There is no try."  --voice vader
 ```
 
----
+or install first:
+```bash
+uv tool install speaky
 
-## 🚀 Quickstart (CLI)
+speak --file speech.txt  --voice attenborough
+```
 
-> The CLI exposes a single command: `speak`.
-
-| Task              | Command                                                         |
-| ----------------- | --------------------------------------------------------------- |
-| Say a sentence    | `speak "Hello, world!"`                            |
-| Batch from a file | `speak -f script.txt -o voiceovers/`                      |
-| Clone a voice     | `speak "How do I sound?" --voice my_prompt.wav`    |
-| Use built-in voice| `speak "Join me" -v vader`                         |
-| All built-in voices| `speak "Join me" -v ALL`                         |
-| Dial up the drama | `speak "This is **exciting**!" --exaggeration 1.2` |
-
-All outputs are MP3 files named after the text (or file stem) and saved to the current directory unless you pass `--output-dir`.
-
-### Common flags
-
-* `--cfg-weight FLOAT`  • classifier‑free guidance mix (0‑1)
-* `--max-chars INT`  • soft limit per chunk (450)
-* `--save-chunks`  • keep intermediate WAVs for debugging
-* `--overwrite`  • replace existing files
-
-Run `speak --help` for the full list.
-
----
+Run `speak --help` for the full list of options.
 
 ## 🐍 Python API
 
@@ -101,7 +42,18 @@ batch_synthesize(
 )
 ```
 
-The helper wraps all the goodies—chunking, glitch detection, transcription verification, etc.—while caching the heavy TTS model for speed.
+## Examples
+https://github.com/user-attachments/assets/f1956d1a-c407-4944-b9f8-a5402f71cbd8
+
+https://github.com/user-attachments/assets/8e6a81df-773c-4d48-876b-4cced0b4f643
+
+https://github.com/user-attachments/assets/2c2884e2-759a-4b1d-884c-c1d5eed9ddf0
+
+https://github.com/user-attachments/assets/2d70a497-b156-40d8-907f-0beb33ea68d6
+
+https://github.com/user-attachments/assets/0ab6195d-ae9e-420e-bde2-719dad772563
+
+https://github.com/user-attachments/assets/aeabd1d9-3839-4190-8460-8ad2e364dd02
 
 ## Credit
 
@@ -139,4 +91,3 @@ This project is built on top of [chatterbox open-source TTS](https://github.com/
 - No logging config or side-effects at import time.
 - Keep interfaces (CLI, web, etc.) thin; put logic elsewhere.
 - Use `typer` for CLI interfaces, `fastapi` for web interfaces, and `pydantic` for data models.
-
