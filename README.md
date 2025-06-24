@@ -16,12 +16,7 @@ Generate natural‑sounding speech from plain text—locally on your GPU/CPU usi
 * **Verification via transcription** (Distil‑Whisper) to catch missing words
 
 ## 🚀 Quickstart (CLI)
-Run without installation:
-```bash
-uvx speak "Do or do not. There is no try."  --voice vader
-```
 
-or install first:
 ```bash
 uv tool install speaky
 
